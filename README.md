@@ -8,6 +8,8 @@
 
 Claude Code has 500+ plugins and skills across multiple marketplaces. You're probably using 5 of them. Dispatch watches your conversation, detects when you shift to a new task, and recommends exactly what you need — before Claude responds.
 
+The hosted version gets smarter every day. As developers use Dispatch across thousands of sessions, aggregate patterns sharpen what gets recommended for each stack. New tools published to the skills registry are discovered automatically — no updates, no configuration, no manual curation. The longer Dispatch runs, the better it gets at knowing what you need before you do.
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  ⚡ Dispatch  →  Flutter task detected
@@ -99,7 +101,11 @@ The `anthropic` Python package installs automatically via `install.sh`.
 
 **Hosted (recommended):** Free for 5 detections/day. Upgrade for unlimited at **$6/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
-**BYOK (self-hosted):** Uses Claude Haiku — the fastest, cheapest Claude model — only for classification.
+The hosted version is more than convenience — it's collective intelligence. Every session across every user improves what gets recommended for your stack. BYOK runs the same algorithm in isolation; hosted runs it with the benefit of aggregate signal from the whole community.
+
+New tools added to the skills registry are picked up automatically. You don't update Dispatch — Dispatch updates itself.
+
+**BYOK (self-hosted):** Runs the raw algorithm with your own Anthropic key. No data sharing, no improving recommendations, no network effect. Good for privacy-first setups.
 
 | Stage | Trigger | Cost |
 |-------|---------|------|
@@ -107,8 +113,6 @@ The `anthropic` Python package installs automatically via `install.sh`.
 | Plugin ranking | On topic shift only | ~$0.001 |
 
 **Typical session (10 messages, 2-3 topic shifts): less than $0.005.**
-
-A full day of heavy Claude Code use costs less than $0.10.
 
 ---
 
@@ -228,6 +232,8 @@ It doesn't care what your stack is. It cares what you're doing in the next five 
 
 The Claude Code plugin ecosystem is genuinely underutilized. Most developers install a handful of plugins and forget the rest exist. Dispatch is the runtime layer that was missing — a router that knows your context and connects you to the right tools automatically.
 
+The code is open source. Run it yourself if you want — it works. But the hosted version knows something your local copy doesn't: what tools thousands of other developers reach for when they're doing exactly what you're doing right now. That gap widens every day.
+
 Built because I needed it. Shared because you probably do too.
 
 This is a vibe coding project — I built Dispatch for myself over a weekend using Claude Code, then cleaned it up enough to share. If you're getting serious about AI tooling, check out [Vib8](https://www.vib8ai.com) — a prompt engineering and optimization platform for 100+ AI tools that pairs well with what Dispatch does inside Claude Code.
@@ -246,8 +252,10 @@ You'll always have the self-hosted option with zero data leaving your machine.
 
 ## Support
 
-Free plan gives you 5 detections/day. If Dispatch becomes part of your workflow, [upgrade to Pro for $6/month](https://dispatch.visionairy.biz/pro) — unlimited detections, same tool.
+Free plan gives you 5 detections/day — enough to evaluate whether Dispatch fits your workflow.
 
-If you'd rather just say thanks, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). No pressure, no newsletter — unless you'd like one on emerging stack trends and new plugins worth knowing about.
+If it does, [upgrade to Pro for $6/month](https://dispatch.visionairy.biz/pro). Unlimited detections, and you're contributing to the data pool that makes recommendations sharper for everyone. The more Pro users, the better the signal.
+
+You can also fork it, run it with your own API key, and never pay a cent. The code is open — the value is in the service. If you'd rather just say thanks, [buy me a coffee](https://github.com/sponsors/VisionAIrySE).
 
 Star it if it helps. Share it if someone else would use it.
