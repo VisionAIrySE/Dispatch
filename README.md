@@ -105,7 +105,13 @@ The hosted version is more than convenience — it's collective intelligence. Ev
 
 New tools added to the skills registry are picked up automatically. You don't update Dispatch — Dispatch updates itself.
 
-**BYOK (self-hosted):** Runs the raw algorithm with your own Anthropic key. No data sharing, no improving recommendations, no network effect. Good for privacy-first setups.
+**Pro subscribers get more than unlimited detections.** As Dispatch grows, Pro is the tier where new capabilities ship first:
+- **Curated registry** — hand-picked, production-tested tool recommendations per stack, vetted by the Dispatch team (live now)
+- **Usage analytics dashboard** — see what task types you shift to most, which tools get recommended, session patterns over time
+- **Weekly digest** — new tools published to your stacks, surfaced before you go looking
+- Every new feature built on top of the usage data gets better the more people use it — and Pro users are the ones feeding that signal
+
+**BYOK (self-hosted):** Runs the raw algorithm with your own Anthropic key. No data sharing, no curated picks, no network effect. Good for privacy-first setups.
 
 | Stage | Trigger | Cost |
 |-------|---------|------|
