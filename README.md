@@ -226,6 +226,16 @@ This is a vibe coding project — I built Dispatch for myself over a weekend usi
 
 ---
 
+## Privacy
+
+Dispatch runs entirely on your machine. The free self-hosted version makes Haiku API calls directly from your computer to Anthropic — no data passes through our servers, ever.
+
+A hosted version is planned. When it launches, anonymous aggregate analytics will be strictly opt-in. We will never sell individual session data. The only thing we'd ever collect is aggregate patterns — what stacks developers are working on, which plugins get recommended — to improve recommendations for everyone.
+
+You'll always have the self-hosted option with zero data leaving your machine.
+
+---
+
 ## Support
 
 If Dispatch saved you some time and made your Claude Code experience better, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). That's it. No pressure, no tiers, no newsletter.
