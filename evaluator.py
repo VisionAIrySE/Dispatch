@@ -30,7 +30,7 @@ def scan_installed_plugins(plugins_dir: str) -> list:
     pattern = os.path.join(plugins_dir, "*", "plugins", "*", ".claude-plugin", "plugin.json")
     for path in glob.glob(pattern):
         try:
-            with open(path) as f:
+            with open(path, encoding='utf-8') as f:
                 data = json.load(f)
                 name = data.get("name", "")
                 description = data.get("description", "")
@@ -50,14 +50,14 @@ def get_installed_skills() -> list:
     try:
         result = subprocess.run(
             ["npx", "--yes", "skills", "list", "-g"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10, check=False
         )
         if result.returncode != 0:
             return []
         lines = result.stdout.strip().split("\n")
         cleaned = []
-        for l in lines:
-            stripped = strip_ansi(l).strip()
+        for line in lines:
+            stripped = strip_ansi(line).strip()
             # Keep only lines that look like skill identifiers (hyphenated, no spaces)
             if stripped and not stripped.startswith("No ") and " " not in stripped and "-" in stripped:
                 cleaned.append(stripped)
@@ -78,7 +78,7 @@ def search_registry(task_type: str, limit: int = 5) -> list:
         primary = task_type.split("-")[0]
         result = subprocess.run(
             ["npx", "--yes", "skills", "find", primary],
-            capture_output=True, text=True, timeout=6
+            capture_output=True, text=True, timeout=6, check=False
         )
         lines = result.stdout.split("\n")
         skills = []
