@@ -125,7 +125,7 @@ except:
         W=52
         echo ""
         printf '━%.0s' $(seq 1 $W); echo
-        echo " ⚡ Dispatch  →  Task shift detected"
+        echo " 🔵 Dispatch  →  Task shift detected"
         printf '━%.0s' $(seq 1 $W); echo
         echo " You've used your 5 free detections today."
         echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"
@@ -205,7 +205,7 @@ if not installed and not suggested:
 W = 52
 bar = "━" * W
 print(f"\n{bar}", flush=True)
-print(f" ⚡ Dispatch  →  {task_type.replace('-', ' ').title()} task detected", flush=True)
+print(f" 🔵 Dispatch  →  {task_type.replace('-', ' ').title()} task detected", flush=True)
 print(bar, flush=True)
 
 if installed:
