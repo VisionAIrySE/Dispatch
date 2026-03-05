@@ -68,15 +68,17 @@ def get_installed_skills() -> list:
 
 def strip_ansi(text: str) -> str:
     """Strip ANSI escape codes from text."""
-    return re.sub(r'\x1b\[[0-9;]*m', '', text)
+    return re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', text)
 
 
 def search_registry(task_type: str, limit: int = 5) -> list:
     """Search skills.sh registry for task-type matches."""
     try:
+        # Use only the primary term for registry search (e.g. "docker" from "docker-aws-github-actions")
+        primary = task_type.split("-")[0]
         result = subprocess.run(
-            ["npx", "--yes", "skills", "find", task_type],
-            capture_output=True, text=True, timeout=20
+            ["npx", "--yes", "skills", "find", primary],
+            capture_output=True, text=True, timeout=6
         )
         lines = result.stdout.split("\n")
         skills = []
@@ -129,7 +131,12 @@ Which are most relevant for a {task_type} task?"""
 
         if not response.content:
             return {"installed": [], "suggested": []}
-        return json.loads(response.content[0].text)
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text.strip())
 
     except Exception:
         return {"installed": [], "suggested": []}

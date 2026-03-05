@@ -129,8 +129,8 @@ print(f"\n [Enter] or wait 3s to proceed", flush=True)
 print(bar, flush=True)
 PYEOF
 
-# Wait for user confirmation
-read -r -t 5 < /dev/tty 2>/dev/null || sleep 3
+# Wait for user confirmation (3s max — hook has 10s total timeout)
+read -r -t 3 < /dev/tty 2>/dev/null || sleep 3
 
 # ── Update state ───────────────────────────────────────────────────────────
 python3 -c "
