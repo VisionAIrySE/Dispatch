@@ -9,6 +9,8 @@ set -euo pipefail
 DISPATCH_DIR="$HOME/.claude/skill-router"
 HOOKS_DIR="$HOME/.claude/hooks"
 SETTINGS="$HOME/.claude/settings.json"
+CONFIG_FILE="$DISPATCH_DIR/config.json"
+DISPATCH_ENDPOINT="https://dispatch.visionairy.biz"
 
 echo "Installing Dispatch..."
 
@@ -74,11 +76,60 @@ with open(settings_path, "w") as f:
 print("Registered UserPromptSubmit hook in settings.json")
 PYEOF
 
+# ── Auth / API key setup ───────────────────────────────────────────────────
+echo ""
+
+# Check if already have a token
+EXISTING_TOKEN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    t = d.get('token', '')
+    print(t if t else '')
+except:
+    print('')
+" 2>/dev/null || echo "")
+
+if [ -n "$EXISTING_TOKEN" ]; then
+    echo "✓ Dispatch token found — using hosted endpoint."
+elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "✓ ANTHROPIC_API_KEY found — running in BYOK mode."
+    echo "  (Register at $DISPATCH_ENDPOINT/auth/github to use the hosted endpoint)"
+else
+    # No token, no API key — offer registration
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo " ⚡ Connect Dispatch to the hosted endpoint (free)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo " 1. Open this URL in your browser:"
+    echo "    $DISPATCH_ENDPOINT/auth/github"
+    echo ""
+    echo " 2. Sign in with GitHub"
+    echo " 3. Copy the token shown on screen"
+    echo " 4. Paste it here and press Enter:"
+    echo ""
+    printf "    Token: "
+    read -r USER_TOKEN < /dev/tty
+
+    if [ -n "$USER_TOKEN" ]; then
+        python3 -c "
+import json
+config = {'endpoint': '$DISPATCH_ENDPOINT', 'token': '$USER_TOKEN'}
+with open('$CONFIG_FILE', 'w') as f:
+    json.dump(config, f, indent=2)
+print('Token saved.')
+" 2>/dev/null && echo "✓ Token saved to $CONFIG_FILE"
+    else
+        echo ""
+        echo "  No token entered. Set ANTHROPIC_API_KEY to use BYOK mode, or"
+        echo "  re-run install.sh after registering at $DISPATCH_ENDPOINT/auth/github"
+    fi
+    echo ""
+fi
+
 echo ""
 echo "✓ Dispatch installed."
 echo ""
 echo "Next steps:"
-echo "  1. Set your Anthropic API key: export ANTHROPIC_API_KEY=sk-ant-..."
-echo "  2. Start a new Claude Code session"
-echo "  3. Type a task — Dispatch fires automatically on topic shifts"
+echo "  Start a new Claude Code session — Dispatch fires automatically on topic shifts"
 echo ""

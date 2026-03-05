@@ -62,7 +62,15 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Then add your Anthropic API key:
+`install.sh` will prompt you to connect via GitHub — sign in, copy the token, paste it back. That's it. No API key needed.
+
+Start a **new** Claude Code session. Dispatch is active immediately.
+
+> Dispatch hooks into `UserPromptSubmit` which loads at session startup — existing sessions won't pick it up.
+
+### BYOK mode (bring your own API key)
+
+If you prefer to run entirely self-hosted with your own Anthropic key:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -72,9 +80,7 @@ echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc   # bash
 echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.zshrc    # zsh
 ```
 
-Start a **new** Claude Code session. Dispatch is active immediately.
-
-> Dispatch hooks into `UserPromptSubmit` which loads at session startup — existing sessions won't pick it up.
+Dispatch will use your key directly — no token, no server, no data leaving your machine.
 
 ---
 
@@ -83,7 +89,7 @@ Start a **new** Claude Code session. Dispatch is active immediately.
 - **[Claude Code](https://claude.ai/code)** v1.x+ (hooks support required)
 - **Python 3.8+**
 - **Node.js + npx** — [nodejs.org](https://nodejs.org)
-- **Anthropic API key** — for Haiku classification ([get one here](https://console.anthropic.com))
+- **Either:** a free Dispatch account (recommended) **or** an Anthropic API key
 
 The `anthropic` Python package installs automatically via `install.sh`.
 
@@ -91,7 +97,9 @@ The `anthropic` Python package installs automatically via `install.sh`.
 
 ## Cost
 
-Dispatch uses Claude Haiku — the fastest, cheapest Claude model — only for classification.
+**Hosted (recommended):** Free for 5 detections/day. Upgrade for unlimited at **$6/month** → [dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
+
+**BYOK (self-hosted):** Uses Claude Haiku — the fastest, cheapest Claude model — only for classification.
 
 | Stage | Trigger | Cost |
 |-------|---------|------|
@@ -203,8 +211,8 @@ Pull requests welcome. The classifier taxonomy and evaluator ranking logic are t
 - [ ] Caching layer for plugin registry (reduce npx latency)
 - [ ] `/dispatch status` command to inspect current state
 - [ ] Expand task type taxonomy (React, Python, Docker, AWS...)
-- [ ] V2: Hosted classifier — no API key required
-- [ ] V2: skills.sh distribution
+- [ ] skills.sh distribution
+- [x] Hosted endpoint — no API key required (live at dispatch.visionairy.biz)
 
 ---
 
@@ -228,9 +236,9 @@ This is a vibe coding project — I built Dispatch for myself over a weekend usi
 
 ## Privacy
 
-Dispatch runs entirely on your machine. The free self-hosted version makes Haiku API calls directly from your computer to Anthropic — no data passes through our servers, ever.
+**Self-hosted (BYOK):** Haiku API calls go directly from your machine to Anthropic. No data passes through our servers, ever.
 
-A hosted version is planned. When it launches, anonymous aggregate analytics will be strictly opt-in. We will never sell individual session data. The only thing we'd ever collect is aggregate patterns — what stacks developers are working on, which plugins get recommended — to improve recommendations for everyone.
+**Hosted:** Classification requests pass through dispatch.visionairy.biz. We store only your GitHub username, email, and usage count. We will never sell individual session data. Aggregate patterns — what stacks developers work on, which plugins get recommended — may be used to improve recommendations for everyone, and only in anonymized form.
 
 You'll always have the self-hosted option with zero data leaving your machine.
 
@@ -238,6 +246,8 @@ You'll always have the self-hosted option with zero data leaving your machine.
 
 ## Support
 
-If Dispatch saved you some time and made your Claude Code experience better, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). That's it. No pressure, no tiers, no newsletter — unless you'd like one on emerging stack trends and new plugins worth knowing about.
+Free plan gives you 5 detections/day. If Dispatch becomes part of your workflow, [upgrade to Pro for $6/month](https://dispatch.visionairy.biz/pro) — unlimited detections, same tool.
+
+If you'd rather just say thanks, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). No pressure, no newsletter — unless you'd like one on emerging stack trends and new plugins worth knowing about.
 
 Star it if it helps. Share it if someone else would use it.

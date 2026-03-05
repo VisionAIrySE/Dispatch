@@ -2,7 +2,10 @@
 # =============================================================================
 # Dispatch — Skill Router Hook (UserPromptSubmit)
 #
-# Stage 1: Haiku topic shift detection (~100ms, every message)
+# Hosted mode:  token in config.json → calls dispatch.visionairy.biz
+# BYOK mode:    ANTHROPIC_API_KEY set → calls Haiku directly (no token needed)
+#
+# Stage 1: Topic shift detection (~100ms, every message)
 # Stage 2: Plugin evaluation + interactive UI (only on confirmed shift)
 # =============================================================================
 
@@ -11,8 +14,28 @@ set -uo pipefail
 HOOK_INPUT=$(cat)
 SKILL_ROUTER_DIR="/home/visionairy/.claude/skill-router"
 STATE_FILE="$SKILL_ROUTER_DIR/state.json"
+CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 
-# ── Resolve API key (env or from mcp.json) ────────────────────────────────
+# ── Load hosted config (token + endpoint) ─────────────────────────────────
+DISPATCH_TOKEN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    print(d.get('token', ''))
+except:
+    print('')
+" 2>/dev/null || echo "")
+
+DISPATCH_ENDPOINT=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    print(d.get('endpoint', 'https://dispatch.visionairy.biz'))
+except:
+    print('https://dispatch.visionairy.biz')
+" 2>/dev/null || echo "https://dispatch.visionairy.biz")
+
+# ── Resolve API key (env or from mcp.json) — BYOK fallback ───────────────
 if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
     ANTHROPIC_API_KEY=$(python3 -c "
 import json
@@ -24,6 +47,11 @@ except:
 " 2>/dev/null || echo "")
 fi
 export ANTHROPIC_API_KEY
+
+# ── If no token AND no API key, exit silently ─────────────────────────────
+if [ -z "$DISPATCH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+    exit 0
+fi
 
 # ── Extract transcript path + cwd ─────────────────────────────────────────
 TRANSCRIPT_PATH=$(python3 -c "
@@ -50,11 +78,70 @@ except:
 " 2>/dev/null || echo "")
 
 # ── Stage 1: Classify ──────────────────────────────────────────────────────
-CLASSIFICATION=$(python3 "$SKILL_ROUTER_DIR/classifier.py" \
-    --transcript "$TRANSCRIPT_PATH" \
-    --cwd "$CWD" \
-    --last-task-type "$LAST_TASK_TYPE" \
-    2>/dev/null || echo '{"shift":false,"task_type":"general","confidence":0}')
+if [ -n "$DISPATCH_TOKEN" ]; then
+    # ── Hosted mode ──────────────────────────────────────────────────────────
+    CLASSIFY_PAYLOAD=$(python3 -c "
+import json, sys, os
+transcript_path = sys.argv[1]
+cwd = sys.argv[2]
+last_task_type = sys.argv[3] or None
+transcript = []
+if transcript_path and os.path.exists(transcript_path):
+    try:
+        with open(transcript_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        transcript.append(json.loads(line))
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_task_type}))
+" "$TRANSCRIPT_PATH" "$CWD" "$LAST_TASK_TYPE" 2>/dev/null || echo '{}')
+
+    HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -X POST "$DISPATCH_ENDPOINT/classify" \
+        -H "Authorization: Bearer $DISPATCH_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$CLASSIFY_PAYLOAD" \
+        --max-time 5 2>/dev/null || echo '{"shift":false}
+200')
+
+    HTTP_BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
+    HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n 1)
+
+    # Handle limit reached (402)
+    if [ "$HTTP_CODE" = "402" ]; then
+        UPGRADE_URL=$(python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.argv[1])
+    print(d.get('upgrade_url', 'https://dispatch.visionairy.biz/pro'))
+except:
+    print('https://dispatch.visionairy.biz/pro')
+" "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
+        W=52
+        echo ""
+        printf '━%.0s' $(seq 1 $W); echo
+        echo " ⚡ Dispatch  →  Task shift detected"
+        printf '━%.0s' $(seq 1 $W); echo
+        echo " You've used your 5 free detections today."
+        echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"
+        printf '━%.0s' $(seq 1 $W); echo
+        exit 0
+    fi
+
+    CLASSIFICATION="$HTTP_BODY"
+else
+    # ── BYOK mode ─────────────────────────────────────────────────────────
+    CLASSIFICATION=$(python3 "$SKILL_ROUTER_DIR/classifier.py" \
+        --transcript "$TRANSCRIPT_PATH" \
+        --cwd "$CWD" \
+        --last-task-type "$LAST_TASK_TYPE" \
+        2>/dev/null || echo '{"shift":false,"task_type":"general","confidence":0}')
+fi
 
 SHIFT=$(python3 -c "
 import json, sys
@@ -79,13 +166,25 @@ CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/
 [ "$CONF_OK" != "yes" ] && exit 0
 
 # ── Stage 2: Evaluate + render UI ─────────────────────────────────────────
-RECOMMENDATIONS=$(python3 -c "
+if [ -n "$DISPATCH_TOKEN" ]; then
+    # ── Hosted rank ────────────────────────────────────────────────────────
+    RANK_RESPONSE=$(curl -s \
+        -X POST "$DISPATCH_ENDPOINT/rank" \
+        -H "Authorization: Bearer $DISPATCH_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"task_type\": \"$TASK_TYPE\"}" \
+        --max-time 5 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+    RECOMMENDATIONS="$RANK_RESPONSE"
+else
+    # ── BYOK rank ──────────────────────────────────────────────────────────
+    RECOMMENDATIONS=$(python3 -c "
 import sys, json
 sys.path.insert(0, '$SKILL_ROUTER_DIR')
 from evaluator import build_recommendation_list
 task_type = sys.argv[1]
 print(json.dumps(build_recommendation_list(task_type)))
 " "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+fi
 
 # Render and prompt
 python3 - "$TASK_TYPE" "$RECOMMENDATIONS" <<'PYEOF'
