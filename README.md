@@ -238,6 +238,6 @@ You'll always have the self-hosted option with zero data leaving your machine.
 
 ## Support
 
-If Dispatch saved you some time and made your Claude Code experience better, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). That's it. No pressure, no tiers, no newsletter.
+If Dispatch saved you some time and made your Claude Code experience better, you can [buy me a coffee](https://github.com/sponsors/VisionAIrySE). That's it. No pressure, no tiers, no newsletter — unless you'd like one on emerging stack trends and new plugins worth knowing about.
 
 Star it if it helps. Share it if someone else would use it.
