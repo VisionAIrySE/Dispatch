@@ -68,7 +68,12 @@ Has the developer shifted to a new task?"""
             messages=[{"role": "user", "content": user_content}]
         )
 
-        return json.loads(response.content[0].text)
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text.strip())
 
     except Exception:
         return {"shift": False, "task_type": last_task_type or "general", "confidence": 0.0}
