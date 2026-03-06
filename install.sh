@@ -36,7 +36,7 @@ cp evaluator.py "$DISPATCH_DIR/"
 [ -f "$DISPATCH_DIR/state.json" ] || echo '{"last_task_type":null,"last_updated":null}' > "$DISPATCH_DIR/state.json"
 
 # ── Install hook script ────────────────────────────────────────────────────
-sed "s|/home/visionairy|$HOME|g" dispatch.sh > "$HOOKS_DIR/skill-router.sh"
+cp dispatch.sh "$HOOKS_DIR/skill-router.sh"
 chmod +x "$HOOKS_DIR/skill-router.sh"
 
 # ── Register hook in settings.json ────────────────────────────────────────

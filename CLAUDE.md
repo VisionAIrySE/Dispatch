@@ -17,12 +17,21 @@ Two-stage UserPromptSubmit hook:
 - Task type is open-ended (not a fixed list) — Haiku generates the most specific label it can
 
 **Stage 2 — evaluator.py** (on confirmed shift only)
-- Scans `~/.claude/plugins/marketplaces/` for installed plugins
-- Runs `npx skills list -g` for installed agent skills
-- Runs `npx skills find <primary_term>` for registry search
+- Scans `~/.claude/plugins/marketplaces/` for installed plugins (extracts marketplace name from path)
+- Runs `npx skills list -g` for installed agent skills (cached 1hr in npx_cache.json)
+- Runs `npx skills find <primary_term>` for registry search (also cached)
 - Haiku ranks all results by relevance, returns top 4 installed + top 3 suggested
+- Post-ranking: enriches installed items with marketplace name for display
+
+**Hosted mode (token in config.json):**
+- Stage 1: POSTs transcript to /classify endpoint; quota consumed only on confirmed shifts
+- Stage 2: sends locally-scanned plugins/skills to /rank; falls back to BYOK ranking on non-200
+- 402 (limit reached): shown once with upgrade URL, suppressed for next 5 shifts via limit_cooldown
+- 401 (invalid token): shown once with re-auth URL, suppressed for next 20 messages via auth_invalid_cooldown
 
 **dispatch.sh** — orchestrates Stage 1 + 2, renders UI, updates state.json
+- 3s wait only fires when there are actual recommendations (skipped on "no skills found")
+- Trap cleans up mktemp tmpfiles on any exit
 
 ---
 
@@ -35,7 +44,7 @@ Two-stage UserPromptSubmit hook:
 | `dispatch.sh` | Main hook — orchestrates everything |
 | `install.sh` | Copies files, registers hook in settings.json |
 | `test_classifier.py` | 9 unit tests for classifier |
-| `test_evaluator.py` | 11 unit tests for evaluator |
+| `test_evaluator.py` | 13 unit tests for evaluator |
 
 **Installed location:** `~/.claude/skill-router/` (classifier.py, evaluator.py)
 **Hook location:** `~/.claude/hooks/skill-router.sh`
@@ -78,7 +87,7 @@ cd ~/.claude/skill-router
 python3 -m pytest test_classifier.py test_evaluator.py -v
 ```
 
-All 20 tests must pass before pushing.
+All 22 tests must pass before pushing.
 
 **Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit from inside a session.
 
@@ -108,16 +117,26 @@ install.sh handles this automatically for fresh installs.
 
 - **2026-03-05:** Haiku markdown wrapping bug — fixed in classifier.py and evaluator.py
 - **2026-03-05:** Compound task types broke registry search — fixed with primary term split
-- **2026-03-05:** Double-wait bug (6s instead of 3s) — fixed in dispatch.sh
 - **2026-03-05:** Shell injection via TASK_TYPE — fixed with argv passing
 - **2026-03-05:** Open-ended taxonomy — removed fixed task type list, Haiku now generates labels freely
+- **2026-03-05:** Hook UI invisible (stdout vs stderr) — all UI output to stderr
+- **2026-03-05:** 402 fired on every message when limit hit — server now only charges on confirmed shifts
+- **2026-03-05:** Unbound $TASK_TYPE crashed hook after 402 display — fixed with ${LAST_TASK_TYPE:-}
+- **2026-03-05:** Server evaluator used npx (unavailable on Render) — replaced with skills.sh HTTP API
+- **2026-03-05:** Hosted /rank never sent client installed plugins — fixed in Stage 2 payload
+- **2026-03-05:** 3s wait fired even with "no skills found" — gated on HAS_RECS check
+- **2026-03-05:** Tmpfile leak on unexpected exit — trap EXIT added
+- **2026-03-05:** Invalid token gave no indication — 401 handler with auth_invalid_cooldown
+- **2026-03-05:** Marketplace name missing from installed plugin display — extracted from path, shown as "(via marketplace)"
+- **2026-03-05:** /rank failure silently returned empty — fallback to BYOK local ranking added
+- **2026-03-05:** settings.json malformed JSON crashed install — wrapped in try/except
 
 ---
 
 ## Roadmap
 
+- [x] Hosted endpoint — live at dispatch.visionairy.biz, $6/month Pro
+- [x] Caching layer for plugin registry (npx_cache.json, 1hr TTL)
 - [ ] End-to-end live session testing + screen recording for promotion
-- [ ] Caching layer for plugin registry (reduce npx latency)
 - [ ] `/dispatch status` command
-- [ ] V2: Hosted classifier endpoint (no API key required, $9/month)
-- [ ] V2: skills.sh distribution
+- [ ] skills.sh distribution
