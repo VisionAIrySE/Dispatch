@@ -40,6 +40,16 @@ class TestShouldSkip(unittest.TestCase):
     def test_skips_very_short_message(self):
         assert should_skip("yes") is True
 
+    def test_does_not_skip_4_word_task_shift(self):
+        # 4-word messages like "set up Stripe integration" are real task shifts
+        assert should_skip("set up Stripe integration") is False
+
+    def test_does_not_skip_5_word_task_shift(self):
+        assert should_skip("now set up Firebase auth") is False
+
+    def test_skips_3_word_filler(self):
+        assert should_skip("yes do that") is True
+
 
 class TestClassifyTopicShift(unittest.TestCase):
     @patch('classifier.anthropic.Anthropic')

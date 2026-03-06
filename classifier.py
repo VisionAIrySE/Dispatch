@@ -42,7 +42,7 @@ def extract_recent_messages(transcript: list, n: int = 3) -> list:
 def should_skip(message: str) -> bool:
     """Return True if we should skip classification (short follow-up)."""
     word_count = len(message.strip().split())
-    return word_count < 6
+    return word_count < 4
 
 
 def classify_topic_shift(messages: list, cwd: str, last_task_type: str = None, api_key: str = None) -> dict:

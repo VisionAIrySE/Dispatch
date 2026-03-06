@@ -157,7 +157,7 @@ npx skills add supabase/agent-skills@supabase-postgres-best-practices -y -g
 
 Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
 
-**Smart skipping** — messages under 6 words skip classification entirely.
+**Smart skipping** — messages of 3 words or fewer skip classification entirely.
 
 **Stage 2 — Evaluation (on confirmed shift only)**
 
