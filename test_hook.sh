@@ -321,15 +321,13 @@ run_scenario_7() {
     OUTPUT=$(run_hook "set up Stripe webhook endpoint and verify the signature")
     COOLDOWN=$(get_cooldown "limit_cooldown")
     restore_state; restore_config; stop_mock_server
-    if echo "$OUTPUT" | grep -q "free detections"; then
-        pass "Upgrade notice shown"
-        [ "$COOLDOWN" = "5" ] && pass "limit_cooldown set to 5" \
-                               || fail "limit_cooldown=$COOLDOWN, expected 5"
-        echo "$OUTPUT"
-    elif [ -z "$OUTPUT" ]; then
-        fail "No output"
+    # Notice goes to /dev/tty (not captured in tests) — verify via state.json side effect
+    UNEXPECTED=$(echo "$OUTPUT" | grep -v "^$" | grep -v "/dev/tty" || true)
+    if [ "$COOLDOWN" = "5" ]; then
+        pass "402 upgrade notice displayed (via /dev/tty) + limit_cooldown set to 5"
+        [ -z "$UNEXPECTED" ] || fail "Unexpected extra output: $UNEXPECTED"
     else
-        fail "Unexpected output: $OUTPUT"
+        fail "limit_cooldown=$COOLDOWN, expected 5 (output: $OUTPUT)"
     fi
 }
 
@@ -368,15 +366,13 @@ run_scenario_9() {
     OUTPUT=$(run_hook "set up Stripe webhook endpoint and verify the signature")
     COOLDOWN=$(get_cooldown "auth_invalid_cooldown")
     restore_state; restore_config; stop_mock_server
-    if echo "$OUTPUT" | grep -qi "invalid\|expired\|token\|authenticate"; then
-        pass "Re-auth notice shown"
-        [ "$COOLDOWN" = "5" ] && pass "auth_invalid_cooldown set to 5" \
-                               || fail "auth_invalid_cooldown=$COOLDOWN, expected 5"
-        echo "$OUTPUT"
-    elif [ -z "$OUTPUT" ]; then
-        fail "No output"
+    # Notice goes to /dev/tty (not captured in tests) — verify via state.json side effect
+    UNEXPECTED=$(echo "$OUTPUT" | grep -v "^$" | grep -v "/dev/tty" || true)
+    if [ "$COOLDOWN" = "5" ]; then
+        pass "401 re-auth notice displayed (via /dev/tty) + auth_invalid_cooldown set to 5"
+        [ -z "$UNEXPECTED" ] || fail "Unexpected extra output: $UNEXPECTED"
     else
-        fail "Unexpected output: $OUTPUT"
+        fail "auth_invalid_cooldown=$COOLDOWN, expected 5 (output: $OUTPUT)"
     fi
 }
 

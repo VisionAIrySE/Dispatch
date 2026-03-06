@@ -118,7 +118,7 @@ import json, sys, os
 transcript_path = sys.argv[1]
 cwd = sys.argv[2]
 last_task_type = sys.argv[3] or None
-prompt = sys.argv[4] if len(sys.argv) > 4 else ""
+prompt = sys.argv[4] if len(sys.argv) > 4 else ''
 transcript = []
 if transcript_path and os.path.exists(transcript_path):
     try:
@@ -179,13 +179,7 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        echo "" >&2
-        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
-        echo " ${DICON} Dispatch  →  Task shift detected" >&2
-        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
-        echo " You've used your 5 free detections today." >&2
-        echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL" >&2
-        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
 import json, sys
@@ -223,11 +217,7 @@ with open(state_file, 'w') as f:
             exit 0
         fi
         W=52
-        echo "" >&2
-        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
-        echo " ${DICON} Dispatch  →  Token invalid or expired" >&2
-        echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup" >&2
-        printf '━%.0s' $(seq 1 $W) >&2; echo >&2
+        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
         python3 -c "
 import json, sys
 from datetime import datetime
@@ -333,8 +323,13 @@ fi
 python3 - "$TASK_TYPE" "$RECOMMENDATIONS" <<'PYEOF'
 import json, sys
 
+try:
+    _tty = open('/dev/tty', 'w')
+except Exception:
+    _tty = sys.stderr
+
 def p(msg=""):
-    print(msg, file=sys.stderr, flush=True)
+    print(msg, file=_tty, flush=True)
 
 task_type = sys.argv[1]
 try:
@@ -347,10 +342,10 @@ suggested = recs.get("suggested", [])
 
 if not installed and not suggested:
     W2 = 52
-    print(f"\n{'━' * W2}", file=sys.stderr, flush=True)
-    print(f" \033[94m◎\033[0m Dispatch  →  {task_type.replace('-', ' ').title()} task detected", file=sys.stderr, flush=True)
-    print(f" No skills found for this task type.", file=sys.stderr, flush=True)
-    print(f"{'━' * W2}", file=sys.stderr, flush=True)
+    p(f"\n{'━' * W2}")
+    p(f" \033[94m◎\033[0m Dispatch  →  {task_type.replace('-', ' ').title()} task detected")
+    p(f" No skills found for this task type.")
+    p(f"{'━' * W2}")
     sys.exit(0)
 
 W = 52
@@ -362,9 +357,7 @@ p(bar)
 if installed:
     p(" RECOMMENDED (installed):")
     for plug in installed:
-        marketplace = plug.get('marketplace', '')
-        label = f"   + {plug['name']}  (via {marketplace})" if marketplace else f"   + {plug['name']}"
-        p(label)
+        p(f"   + {plug['name']}")
         reason = plug.get('reason', '')
         if reason:
             p(f"     {reason}")
@@ -372,7 +365,9 @@ if installed:
 if suggested:
     p("\n SUGGESTED (not installed):")
     for s in suggested:
-        p(f"   ↓ {s['name']}")
+        marketplace = s.get('marketplace', '')
+        label = f"   ↓ {s['name']}  (via {marketplace})" if marketplace else f"   ↓ {s['name']}"
+        p(label)
         reason = s.get('reason', '')
         if reason:
             p(f"     {reason}")
