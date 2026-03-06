@@ -139,7 +139,7 @@ print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_t
 200')
     rm -f "$CLASSIFY_TMP"
 
-    HTTP_BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
+    HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
     HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n 1)
 
     # Handle limit reached (402)
@@ -296,7 +296,7 @@ print(json.dumps({
         --max-time 5 2>/dev/null || echo '{"installed":[],"suggested":[]}
 200')
     rm -f "$RANK_TMP"
-    RANK_BODY=$(echo "$RANK_HTTP" | head -n -1)
+    RANK_BODY=$(echo "$RANK_HTTP" | sed '$d')
     RANK_CODE=$(echo "$RANK_HTTP" | tail -n 1)
     if [ "$RANK_CODE" = "200" ]; then
         RECOMMENDATIONS="$RANK_BODY"
