@@ -97,6 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--transcript", default="")
     parser.add_argument("--cwd", default="")
     parser.add_argument("--last-task-type", default=None)
+    parser.add_argument("--prompt", default="")  # current message from hook stdin
     args = parser.parse_args()
 
     transcript = []
@@ -114,6 +115,12 @@ if __name__ == "__main__":
             pass
 
     messages = extract_recent_messages(transcript, n=3)
+
+    # Append the current prompt — transcript doesn't contain it yet
+    # (CC writes the current message to transcript AFTER the hook fires)
+    if args.prompt:
+        messages.append(args.prompt)
+        messages = messages[-3:]
 
     if not messages or should_skip(messages[-1]):
         print(json.dumps({"shift": False, "task_type": args.last_task_type or "general", "confidence": 0.0}))

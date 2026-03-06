@@ -11,7 +11,7 @@
 
 set -uo pipefail
 
-HOOK_INPUT=$(cat)
+read -r -t 5 HOOK_INPUT || true
 SKILL_ROUTER_DIR="${HOME}/.claude/skill-router"
 STATE_FILE="$SKILL_ROUTER_DIR/state.json"
 CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
@@ -20,6 +20,13 @@ CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"
 CLASSIFY_TMP=""
 RANK_TMP=""
 trap 'rm -f "${CLASSIFY_TMP:-}" "${RANK_TMP:-}" 2>/dev/null' EXIT
+
+# Extract current prompt from hook JSON — avoids transcript timing lag (CC writes
+# the current message to transcript AFTER the hook fires, not before)
+CURRENT_PROMPT=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('prompt',''))" "$HOOK_INPUT" 2>/dev/null || echo "")
+# Skip short follow-ups immediately, before any API calls ("Tool loaded.", "ok", "yes", etc.)
+CURRENT_WORD_COUNT=$(echo "$CURRENT_PROMPT" | wc -w)
+[ "${CURRENT_WORD_COUNT:-0}" -lt 4 ] && exit 0
 
 # Brand icon: blue ◎ (U+25CE) via ANSI — radar sweep target in terminal
 DICON=$'\033[94m◎\033[0m'
@@ -111,6 +118,7 @@ import json, sys, os
 transcript_path = sys.argv[1]
 cwd = sys.argv[2]
 last_task_type = sys.argv[3] or None
+prompt = sys.argv[4] if len(sys.argv) > 4 else ""
 transcript = []
 if transcript_path and os.path.exists(transcript_path):
     try:
@@ -125,8 +133,8 @@ if transcript_path and os.path.exists(transcript_path):
     except Exception:
         pass
 transcript = transcript[-20:]  # Keep last 20 entries to limit payload size
-print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_task_type}))
-" "$TRANSCRIPT_PATH" "$CWD" "$LAST_TASK_TYPE" 2>/dev/null || echo '{}')
+print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_task_type, 'prompt': prompt}))
+" "$TRANSCRIPT_PATH" "$CWD" "$LAST_TASK_TYPE" "$CURRENT_PROMPT" 2>/dev/null || echo '{}')
 
     CLASSIFY_TMP=$(mktemp)
     echo "$CLASSIFY_PAYLOAD" > "$CLASSIFY_TMP"
@@ -228,7 +236,7 @@ try:
     d = json.load(open(state_file))
 except Exception:
     d = {}
-d['auth_invalid_cooldown'] = 20
+d['auth_invalid_cooldown'] = 5
 d['last_updated'] = datetime.now().isoformat()
 with open(state_file, 'w') as f:
     json.dump(d, f)
@@ -243,6 +251,7 @@ else
         --transcript "$TRANSCRIPT_PATH" \
         --cwd "$CWD" \
         --last-task-type "$LAST_TASK_TYPE" \
+        --prompt "$CURRENT_PROMPT" \
         2>/dev/null || echo '{"shift":false,"task_type":"general","confidence":0}')
 fi
 
