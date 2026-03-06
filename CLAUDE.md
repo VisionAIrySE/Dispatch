@@ -43,7 +43,7 @@ Two-stage UserPromptSubmit hook:
 | `evaluator.py` | Plugin inventory + Haiku ranking |
 | `dispatch.sh` | Main hook — orchestrates everything |
 | `install.sh` | Copies files, registers hook in settings.json |
-| `test_classifier.py` | 9 unit tests for classifier |
+| `test_classifier.py` | 12 unit tests for classifier |
 | `test_evaluator.py` | 13 unit tests for evaluator |
 
 **Installed location:** `~/.claude/skill-router/` (classifier.py, evaluator.py)
@@ -89,7 +89,7 @@ cd ~/.claude/skill-router
 python3 -m pytest test_classifier.py test_evaluator.py -v
 ```
 
-All 22 tests must pass before pushing.
+All 25 tests must pass before pushing.
 
 **Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit from inside a session.
 
