@@ -4,6 +4,28 @@ All notable changes to Dispatch are documented here.
 
 ---
 
+## v0.3.0 — 2026-03-07
+
+### Added
+
+- **Contextual "why" in recommendations** — Dispatch now passes the last 3 conversation messages to Haiku during ranking. Each recommendation includes a one-line reason grounded in what the user is actually working on (e.g., "you're setting up Stripe webhooks" instead of generic descriptions).
+- **`recommendations_log` table** — Every confirmed shift now logs `(token, task_type, recommended_tools, context_snippet, created_at)` to Postgres for analytics.
+- **`/analytics` endpoint (Pro only)** — Returns per-user recommendation history: top task types, most-recommended tools, detection count by day. 401 on missing token, 403 on free plan, 200 + JSON on Pro.
+- **Free tier increased to 8 detections/day** — Up from 5. Enough for a full day of natural task switching without hitting the wall.
+
+### Changed
+
+- **stdout injection replaces `/dev/tty`** — Hook output now writes directly to stdout via the `stopReason: block` + `hookSpecificOutput` JSON protocol. Eliminates the terminal race condition where recommendations appeared garbled or interleaved with Claude's response. Output is clean and deterministic in both CLI and TUI modes.
+- **Word threshold changed to `< 3`** — Previously `< 4`. Messages of exactly 3 words now pass through to Haiku classification instead of being skipped. Catches short but meaningful task shifts like "fix the crash".
+- **BYOK fallback updated to 5-field format** — Local classifier now returns `shift`, `domain`, `mode`, `task_type`, and `confidence` (matching hosted format). Previously returned 3 fields, causing evaluator mismatches when running without a token.
+
+### Removed
+
+- **CLAUDE.md modification removed from `install.sh`** — Install no longer appends the notification instruction to `~/.claude/CLAUDE.md`. The pending_notification.json mechanism handles context injection without modifying user config files.
+- **`mcp.json` API key reading removed** — Dispatch no longer attempts to read `ANTHROPIC_API_KEY` from `.mcp.json`. Key must be set as an environment variable. Removes an unintended credential access path.
+
+---
+
 ## v0.2.0 — 2026-03-06
 
 ### Added
