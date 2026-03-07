@@ -26,7 +26,7 @@ trap 'rm -f "${CLASSIFY_TMP:-}" "${RANK_TMP:-}" 2>/dev/null' EXIT
 CURRENT_PROMPT=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('prompt',''))" "$HOOK_INPUT" 2>/dev/null || echo "")
 # Skip short follow-ups immediately, before any API calls ("Tool loaded.", "ok", "yes", etc.)
 CURRENT_WORD_COUNT=$(echo "$CURRENT_PROMPT" | wc -w)
-[ "${CURRENT_WORD_COUNT:-0}" -lt 4 ] && exit 0
+[ "${CURRENT_WORD_COUNT:-0}" -lt 3 ] && exit 0
 
 # Brand icon: blue ◎ (U+25CE) via ANSI — radar sweep target in terminal
 DICON=$'\033[94m◎\033[0m'
@@ -50,17 +50,7 @@ except:
     print('https://dispatch.visionairy.biz')
 " 2>/dev/null || echo "https://dispatch.visionairy.biz")
 
-# ── Resolve API key (env or from mcp.json) — BYOK fallback ───────────────
-if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-    ANTHROPIC_API_KEY=$(python3 -c "
-import json
-try:
-    import os; d = json.load(open(os.path.expanduser('~/.mcp.json')))
-    print(d['mcpServers']['xpansion']['env']['ANTHROPIC_API_KEY'])
-except:
-    print('')
-" 2>/dev/null || echo "")
-fi
+# ── Resolve API key (BYOK fallback) ───────────────────────────────────────
 export ANTHROPIC_API_KEY
 
 # ── If no token AND no API key, exit silently ─────────────────────────────
@@ -179,7 +169,7 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
+        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Task shift detected"; printf '━%.0s' $(seq 1 $W); echo; echo " You've used your 5 free detections today."; echo " Upgrade for unlimited — \$6/month → $UPGRADE_URL"; printf '━%.0s' $(seq 1 $W); echo; } >&2
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
 import json, sys
@@ -217,7 +207,7 @@ with open(state_file, 'w') as f:
             exit 0
         fi
         W=52
-        ({ echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } > /dev/tty) 2>/dev/null || true
+        { echo ""; printf '━%.0s' $(seq 1 $W); echo; echo " ${DICON} Dispatch  →  Token invalid or expired"; echo " Re-authenticate: $DISPATCH_ENDPOINT/token-lookup"; printf '━%.0s' $(seq 1 $W); echo; } >&2
         python3 -c "
 import json, sys
 from datetime import datetime
@@ -242,7 +232,7 @@ else
         --cwd "$CWD" \
         --last-task-type "$LAST_TASK_TYPE" \
         --prompt "$CURRENT_PROMPT" \
-        2>/dev/null || echo '{"shift":false,"task_type":"general","confidence":0}')
+        2>/dev/null || echo '{"shift":false,"domain":"general","mode":"building","task_type":"general-building","confidence":0}')
 fi
 
 SHIFT=$(python3 -c "
@@ -319,41 +309,10 @@ print(json.dumps(build_recommendation_list(task_type)))
 " "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
 fi
 
-# ── Write pending_notification for TUI/desktop display ────────────────────
-python3 -c "
-import json, sys, os
-try:
-    recs = json.loads(sys.argv[2])
-    notif = {
-        'task_type': sys.argv[1],
-        'installed': recs.get('installed', []),
-        'suggested': recs.get('suggested', [])
-    }
-    with open(os.path.join(sys.argv[3], 'pending_notification.json'), 'w') as f:
-        json.dump(notif, f)
-except Exception:
-    pass
-" "$TASK_TYPE" "$RECOMMENDATIONS" "$SKILL_ROUTER_DIR" 2>/dev/null || true
 
-# Render and prompt
+# ── Output to stdout — CC injects this into Claude's context ──────────────
 python3 - "$TASK_TYPE" "$RECOMMENDATIONS" "$CONFIDENCE" <<'PYEOF'
 import json, sys
-
-try:
-    _tty = open('/dev/tty', 'w')
-except Exception:
-    _tty = sys.stderr
-
-def p(msg=""):
-    print(msg, file=_tty, flush=True)
-
-# ANSI colour codes
-BLUE      = "\033[94m"
-CYAN_BOLD = "\033[96;1m"
-GREEN     = "\033[92m"
-YELLOW    = "\033[93m"
-DIM       = "\033[2m"
-RST       = "\033[0m"
 
 task_type = sys.argv[1]
 try:
@@ -368,43 +327,37 @@ task_display = task_type.replace('-', ' ').title()
 installed = recs.get("installed", [])
 suggested = recs.get("suggested", [])
 
-W = 52
-bar = f"{DIM}{'━' * W}{RST}"
-
-if not installed and not suggested:
-    p(f"\n{bar}")
-    p(f" {BLUE}◎{RST} Dispatch  →  {CYAN_BOLD}{task_display}{RST}")
-    p(f"  {DIM}No skills found for this task type.{RST}")
-    p(bar)
-    sys.exit(0)
-
-p(f"\n{bar}")
-p(f" {BLUE}◎{RST} Dispatch  →  {CYAN_BOLD}{task_display}{RST}  {DIM}({conf_label} confidence){RST}")
-p(bar)
+lines = [
+    f"[DISPATCH] Task shift detected: {task_display} ({conf_label} confidence)",
+    "",
+]
 
 if installed:
-    p(f" {DIM}RECOMMENDED (installed){RST}")
-    for plug in installed:
-        p(f"   {GREEN}+{RST} {plug['name']}")
-        reason = plug.get('reason', '')
-        if reason:
-            p(f"     {DIM}{reason}{RST}")
+    lines.append("Recommended tools (already installed):")
+    for p in installed:
+        lines.append(f"  + {p['name']}")
+        if p.get('reason'):
+            lines.append(f"    Why: {p['reason']}")
 
 if suggested:
-    p("")
-    p(f" {DIM}SUGGESTED (not installed){RST}")
+    lines.append("")
+    lines.append("Suggested tools (not installed):")
     for s in suggested:
-        marketplace = s.get('marketplace', '')
-        name_str = f"{s['name']}  {DIM}via {marketplace}{RST}" if marketplace else s['name']
-        p(f"   {YELLOW}↓{RST} {name_str}")
-        reason = s.get('reason', '')
-        if reason:
-            p(f"     {DIM}{reason}{RST}")
-        cmd = s.get('install_cmd', '')
-        if cmd:
-            p(f"     {DIM}→ {cmd}{RST}")
+        lines.append(f"  - {s['name']}")
+        if s.get('reason'):
+            lines.append(f"    Why: {s['reason']}")
+        if s.get('install_cmd'):
+            lines.append(f"    Install: {s['install_cmd']}")
 
-p(bar)
+if not installed and not suggested:
+    lines.append("No matching tools found for this task type.")
+
+lines.extend([
+    "",
+    "Before answering my question: briefly show these recommendations, ask which (if any) I want to activate or install, then wait for my response before proceeding."
+])
+
+print('\n'.join(lines))
 PYEOF
 
 # ── Update state ───────────────────────────────────────────────────────────
