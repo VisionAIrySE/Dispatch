@@ -46,7 +46,7 @@ Dispatch fixes this automatically.
 
 Every message you send, Dispatch:
 
-1. **Detects topic shifts** — Uses Claude Haiku to classify whether you've started a new type of task
+1. **Detects action mode shifts** — Uses Claude Haiku to classify whether you've shifted domain or mode within a domain
 2. **Evaluates your plugins** — Scans every installed Claude Code plugin and agent skill
 3. **Searches the registry** — Queries [skills.sh](https://skills.sh) for relevant uninstalled options
 4. **Shows recommendations** — Pauses 3 seconds so you can see what's available, then proceeds automatically
@@ -153,6 +153,24 @@ npx skills add supabase/agent-skills@supabase-postgres-best-practices -y -g
 
 ## How it works
 
+Dispatch fires when you shift to a new **action mode** or a new **domain** — whichever comes first.
+
+**Action modes** (7 MECE categories):
+
+| Mode | You're... |
+|---|---|
+| `discovering` | Researching, exploring, learning something new |
+| `designing` | Planning, architecting, deciding on approach |
+| `building` | Writing new code, implementing features |
+| `fixing` | Debugging, diagnosing errors, tracing failures |
+| `validating` | Testing, reviewing, verifying correctness |
+| `shipping` | Deploying, releasing, going live |
+| `maintaining` | Refactoring, cleaning up, paying down tech debt |
+
+Moving from `flutter-building` to `flutter-fixing` triggers a shift. So does moving from `flutter` to `supabase`. Both get you the right tools at the right time.
+
+Detection uses Claude Haiku with semantic understanding — not keywords. *"This blows up with a null"* → `fixing`. *"Let me sanity check this"* → `validating`.
+
 **Stage 1 — Classification (every message, ~100ms)**
 
 Haiku receives your last 3 messages and current working directory. Returns `{"shift": bool, "task_type": str, "confidence": float}`. If no shift or confidence below 0.7, exits silently — you never see it.
@@ -169,7 +187,7 @@ Scans `~/.claude/plugins/marketplaces/` for installed plugins, runs `npx skills 
 
 Any. Dispatch doesn't use a fixed list — it generates the most specific label it can from your conversation and uses that to search the live skills registry. If a skill exists for what you're doing, Dispatch will find it.
 
-Examples of what it detects: `flutter` · `react` · `nextjs` · `python` · `docker` · `aws` · `langchain` · `supabase` · `firebase` · `prisma` · `graphql` · `postgres` · `redis` · `stripe` · `github-actions` · `n8n` · `debugging` · `testing` · `devops` · `security` · and anything else in the registry.
+Examples of what it detects: `flutter-building` · `flutter-fixing` · `react-building` · `nextjs-shipping` · `supabase-fixing` · `firebase-building` · `python-building` · `docker-shipping` · `aws-devops` · `stripe-building` · `github-actions-shipping` · and anything else in the registry.
 
 As new skills get published to [skills.sh](https://skills.sh), Dispatch picks them up automatically — no updates required.
 
