@@ -319,8 +319,24 @@ print(json.dumps(build_recommendation_list(task_type)))
 " "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
 fi
 
+# ── Write pending_notification for TUI/desktop display ────────────────────
+python3 -c "
+import json, sys, os
+try:
+    recs = json.loads(sys.argv[2])
+    notif = {
+        'task_type': sys.argv[1],
+        'installed': recs.get('installed', []),
+        'suggested': recs.get('suggested', [])
+    }
+    with open(os.path.join(sys.argv[3], 'pending_notification.json'), 'w') as f:
+        json.dump(notif, f)
+except Exception:
+    pass
+" "$TASK_TYPE" "$RECOMMENDATIONS" "$SKILL_ROUTER_DIR" 2>/dev/null || true
+
 # Render and prompt
-python3 - "$TASK_TYPE" "$RECOMMENDATIONS" <<'PYEOF'
+python3 - "$TASK_TYPE" "$RECOMMENDATIONS" "$CONFIDENCE" <<'PYEOF'
 import json, sys
 
 try:
@@ -331,51 +347,64 @@ except Exception:
 def p(msg=""):
     print(msg, file=_tty, flush=True)
 
+# ANSI colour codes
+BLUE      = "\033[94m"
+CYAN_BOLD = "\033[96;1m"
+GREEN     = "\033[92m"
+YELLOW    = "\033[93m"
+DIM       = "\033[2m"
+RST       = "\033[0m"
+
 task_type = sys.argv[1]
 try:
     recs = json.loads(sys.argv[2])
 except Exception:
     recs = {"installed": [], "suggested": []}
 
+confidence = float(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 0.0
+conf_label = "high" if confidence >= 0.85 else "medium"
+task_display = task_type.replace('-', ' ').title()
+
 installed = recs.get("installed", [])
 suggested = recs.get("suggested", [])
 
+W = 52
+bar = f"{DIM}{'━' * W}{RST}"
+
 if not installed and not suggested:
-    W2 = 52
-    p(f"\n{'━' * W2}")
-    p(f" \033[94m◎\033[0m Dispatch  →  {task_type.replace('-', ' ').title()} task detected")
-    p(f" No skills found for this task type.")
-    p(f"{'━' * W2}")
+    p(f"\n{bar}")
+    p(f" {BLUE}◎{RST} Dispatch  →  {CYAN_BOLD}{task_display}{RST}")
+    p(f"  {DIM}No skills found for this task type.{RST}")
+    p(bar)
     sys.exit(0)
 
-W = 52
-bar = "━" * W
 p(f"\n{bar}")
-p(f" \033[94m◎\033[0m Dispatch  →  {task_type.replace('-', ' ').title()} task detected")
+p(f" {BLUE}◎{RST} Dispatch  →  {CYAN_BOLD}{task_display}{RST}  {DIM}({conf_label} confidence){RST}")
 p(bar)
 
 if installed:
-    p(" RECOMMENDED (installed):")
+    p(f" {DIM}RECOMMENDED (installed){RST}")
     for plug in installed:
-        p(f"   + {plug['name']}")
+        p(f"   {GREEN}+{RST} {plug['name']}")
         reason = plug.get('reason', '')
         if reason:
-            p(f"     {reason}")
+            p(f"     {DIM}{reason}{RST}")
 
 if suggested:
-    p("\n SUGGESTED (not installed):")
+    p("")
+    p(f" {DIM}SUGGESTED (not installed){RST}")
     for s in suggested:
         marketplace = s.get('marketplace', '')
-        label = f"   ↓ {s['name']}  (via {marketplace})" if marketplace else f"   ↓ {s['name']}"
-        p(label)
+        name_str = f"{s['name']}  {DIM}via {marketplace}{RST}" if marketplace else s['name']
+        p(f"   {YELLOW}↓{RST} {name_str}")
         reason = s.get('reason', '')
         if reason:
-            p(f"     {reason}")
+            p(f"     {DIM}{reason}{RST}")
         cmd = s.get('install_cmd', '')
         if cmd:
-            p(f"     → {cmd}")
+            p(f"     {DIM}→ {cmd}{RST}")
 
-p(f"\n [Enter] or wait 3s to proceed")
+p(f"\n {DIM}[Enter] or wait 3s to continue{RST}")
 p(bar)
 PYEOF
 

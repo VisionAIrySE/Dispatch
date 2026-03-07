@@ -78,6 +78,17 @@ with open(settings_path, "w") as f:
 print("Registered UserPromptSubmit hook in settings.json")
 PYEOF
 
+# ── Add pending_notification entry to global CLAUDE.md ─────────────────────
+GLOBAL_CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+DISPATCH_MARKER="## Dispatch Hook Notifications"
+NOTIF_PATH="$DISPATCH_DIR/pending_notification.json"
+
+if ! grep -q "$DISPATCH_MARKER" "$GLOBAL_CLAUDE_MD" 2>/dev/null; then
+    touch "$GLOBAL_CLAUDE_MD"
+    printf '\n## Dispatch Hook Notifications\nAt the start of each response, check if `%s` exists.\nIf it does, read it and display a concise block showing the detected task type and\nrecommended tools (installed first, then suggested with install commands), then\ndelete the file before continuing your response.\n' "$NOTIF_PATH" >> "$GLOBAL_CLAUDE_MD"
+    echo "Added Dispatch notification instruction to ~/.claude/CLAUDE.md"
+fi
+
 # ── Pre-warm npx cache (prevents first-run hook timeout) ───────────────────
 echo "Pre-warming skill registry cache..."
 python3 -c "
