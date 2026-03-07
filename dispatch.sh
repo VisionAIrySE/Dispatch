@@ -309,6 +309,15 @@ print(json.dumps(build_recommendation_list(task_type)))
 " "$TASK_TYPE" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
 fi
 
+HAS_RECS=$(python3 -c "
+import json, sys
+try:
+    r = json.loads(sys.argv[1])
+    print('yes' if r.get('installed') or r.get('suggested') else 'no')
+except:
+    print('no')
+" "$RECOMMENDATIONS" 2>/dev/null || echo "no")
+[ "$HAS_RECS" != "yes" ] && exit 0
 
 # ── Output to stdout — CC injects this into Claude's context ──────────────
 python3 - "$TASK_TYPE" "$RECOMMENDATIONS" "$CONFIDENCE" <<'PYEOF'
@@ -354,7 +363,7 @@ if not installed and not suggested:
 
 lines.extend([
     "",
-    "Before answering my question: briefly show these recommendations, ask which (if any) I want to activate or install, then wait for my response before proceeding."
+    "Before proceeding with any of the above tasks: briefly summarize these tool recommendations, ask which (if any) I want to activate or install, and do not take any other action until I respond."
 ])
 
 print('\n'.join(lines))
