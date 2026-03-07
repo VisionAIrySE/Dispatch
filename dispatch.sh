@@ -404,22 +404,8 @@ if suggested:
         if cmd:
             p(f"     {DIM}→ {cmd}{RST}")
 
-p(f"\n {DIM}[Enter] or wait 3s to continue{RST}")
 p(bar)
 PYEOF
-
-# Only pause when there are recommendations — no point waiting for a no-results notice
-HAS_RECS=$(python3 -c "
-import json, sys
-try:
-    r = json.loads(sys.argv[1])
-    print('yes' if r.get('installed') or r.get('suggested') else 'no')
-except:
-    print('no')
-" "$RECOMMENDATIONS" 2>/dev/null || echo "no")
-if [ "$HAS_RECS" = "yes" ]; then
-    read -r -t 3 < /dev/tty 2>/dev/null || true
-fi
 
 # ── Update state ───────────────────────────────────────────────────────────
 python3 -c "
