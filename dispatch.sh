@@ -338,13 +338,19 @@ transcript_path = sys.argv[4] if len(sys.argv) > 4 else ""
 # Prefer new unified list; fall back to old format
 all_tools = recs.get("all", [])
 if not all_tools:
-    for p in recs.get("installed", []):
+    old_installed = recs.get("installed", [])
+    old_suggested = recs.get("suggested", [])
+    n_installed = len(old_installed)
+    n_suggested = len(old_suggested)
+    for idx, p in enumerate(old_installed):
         p.setdefault("installed", True)
-        p.setdefault("score", 70)
+        # Rank-preserving score: installed tools 65-80 based on position
+        p.setdefault("score", max(65, 80 - idx * 5))
         all_tools.append(p)
-    for s in recs.get("suggested", []):
+    for idx, s in enumerate(old_suggested):
         s.setdefault("installed", False)
-        s.setdefault("score", 60)
+        # Rank-preserving score: suggested tools 50-60 based on position
+        s.setdefault("score", max(50, 60 - idx * 5))
         all_tools.append(s)
 
 top_pick = recs.get("top_pick") or (all_tools[0] if all_tools else None)
@@ -360,14 +366,14 @@ for i, tool in enumerate(all_tools, 1):
     score = tool.get("score", "?")
     installed = tool.get("installed", True)
     reason = tool.get("reason", "")
-    install_cmd = tool.get("install_cmd", "")
-    install_url = tool.get("install_url", "")
+    install_cmd = tool.get("install_cmd", "").replace("\n", " ")
+    install_url = tool.get("install_url", "").replace("\n", " ")
     marketplace = tool.get("marketplace", "")
 
     status = "(installed)" if installed else "(not installed)"
     if marketplace:
         status = f"(installed via {marketplace})"
-    top_marker = " ← TOP PICK" if i == 1 else ""
+    top_marker = " ← TOP PICK" if (top_pick and name == top_pick.get("name")) else ""
 
     lines.append(f"  {i}. {name} [{score}/100]{top_marker} {status}")
     if reason:
