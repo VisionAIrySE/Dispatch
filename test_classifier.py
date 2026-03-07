@@ -141,7 +141,7 @@ class TestClassifyTopicShift(unittest.TestCase):
             last_task_type=None
         )
         assert result["shift"] is False
-        assert result["task_type"] == "general"
+        assert result["task_type"] == "general-building"
         assert result["confidence"] == 0.0
 
 

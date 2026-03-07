@@ -73,7 +73,7 @@ def should_skip(message: str) -> bool:
 def classify_topic_shift(messages: list, cwd: str, last_task_type: str = None, api_key: str = None) -> dict:
     """
     Call Haiku to classify whether a topic shift has occurred.
-    Returns: {"shift": bool, "task_type": str, "confidence": float}
+    Returns: {"shift": bool, "domain": str, "mode": str, "task_type": str, "confidence": float}
     """
     try:
         client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
@@ -101,7 +101,7 @@ Has the developer shifted to a new task?"""
         return json.loads(text.strip())
 
     except Exception:
-        return {"shift": False, "domain": "general", "mode": "building", "task_type": "general", "confidence": 0.0}
+        return {"shift": False, "domain": "general", "mode": "building", "task_type": "general-building", "confidence": 0.0}
 
 
 if __name__ == "__main__":
