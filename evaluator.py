@@ -28,17 +28,25 @@ def _save_cache(cache: dict):
 
 RANK_SYSTEM_PROMPT = """You are a plugin recommendation engine for Claude Code.
 Given a detected task type and lists of available plugins/skills,
-recommend the most relevant ones.
+rank ALL relevant tools collectively by usefulness for the specific task.
 
 Respond with ONLY valid JSON:
 {
-  "installed": [{"name": "...", "reason": "one sentence why"}],
-  "suggested": [{"name": "...", "install_cmd": "...", "reason": "one sentence why"}]
+  "all": [
+    {"name": "...", "score": 90, "installed": true, "reason": "one specific sentence grounded in the current task"},
+    {"name": "...", "score": 75, "installed": false, "install_cmd": "npx skills add owner/repo@skill-name -y", "reason": "one specific sentence grounded in the current task"}
+  ]
 }
 
-Limit to top 4 installed and top 3 suggested. Only include genuinely relevant ones.
-If nothing is relevant, return empty lists.
-For each tool, write a specific 1-sentence 'reason' explaining exactly why it helps with this specific task and context.
+Rules:
+- score 0-100 based on relevance to the specific task (not general quality)
+- Only include tools with score >= 40
+- Limit to top 6 total across installed and uninstalled
+- Sort by score descending (highest first)
+- For installed tools: "installed": true, no install_cmd
+- For uninstalled (registry) tools: "installed": false, include install_cmd using the exact skill ID
+- Write specific reasons grounded in what the developer is actually doing
+- If nothing is relevant, return {"all": []}
 """
 
 
@@ -146,11 +154,11 @@ def rank_recommendations(
     registry_results: list,
     context_snippet: str = None
 ) -> dict:
-    """Use Haiku to rank and filter recommendations by relevance."""
+    """Use Haiku to rank all tools collectively by relevance. Returns {all: [...]}."""
     try:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            return {"installed": [], "suggested": []}
+            return {"all": []}
         client = anthropic.Anthropic(api_key=api_key)
 
         context_line = f"\nUser's current message: \"{context_snippet[:200]}\"" if context_snippet else ""
@@ -166,30 +174,52 @@ Installed skills:
 Available from registry (not installed):
 {json.dumps(registry_results, indent=2)}
 
-Which are most relevant for a {task_type} task?"""
+Rank ALL relevant tools collectively for a {task_type} task."""
 
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=500,
+            max_tokens=600,
             system=RANK_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_content}]
         )
 
         if not response.content:
-            return {"installed": [], "suggested": []}
+            return {"all": []}
         text = response.content[0].text.strip()
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
                 text = text[4:]
-        return json.loads(text.strip())
+        parsed = json.loads(text.strip())
+        # Normalize: if Haiku returns old format, convert it
+        if "all" not in parsed and ("installed" in parsed or "suggested" in parsed):
+            combined = []
+            for item in parsed.get("installed", []):
+                item.setdefault("installed", True)
+                item.setdefault("score", 70)
+                combined.append(item)
+            for item in parsed.get("suggested", []):
+                item.setdefault("installed", False)
+                item.setdefault("score", 60)
+                combined.append(item)
+            parsed = {"all": combined}
+        return parsed
 
     except Exception:
-        return {"installed": [], "suggested": []}
+        return {"all": []}
 
 
 def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None) -> dict:
-    """Full evaluation pipeline: scan installed -> search registry -> rank."""
+    """Full evaluation pipeline: scan installed -> search registry -> rank collectively.
+
+    Returns:
+        {
+            "all": [{name, score, installed, reason, install_cmd?, install_url?, marketplace?}],
+            "top_pick": {name, score, installed, reason, ...} or None,
+            "installed": [...],   # backward-compat: items from all where installed=True
+            "suggested": [...],   # backward-compat: items from all where installed=False
+        }
+    """
     if installed_plugins is None:
         installed_plugins = scan_installed_plugins(PLUGINS_DIR)
     if installed_skills is None:
@@ -202,10 +232,30 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
         registry_results=registry_results,
         context_snippet=context_snippet
     )
-    # Enrich ranked installed items with marketplace info from the original scan
+
+    all_tools = result.get("all", [])
     plugin_map = {p["name"]: p for p in installed_plugins}
-    for item in result.get("installed", []):
-        mp = plugin_map.get(item["name"], {}).get("marketplace", "")
-        if mp:
-            item["marketplace"] = mp
-    return result
+
+    for item in all_tools:
+        name = item.get("name", "")
+        if item.get("installed", False):
+            # Add marketplace from local plugin scan
+            mp = plugin_map.get(name, {}).get("marketplace", "")
+            if mp:
+                item["marketplace"] = mp
+        else:
+            # Derive GitHub URL from skill ID: "owner/repo@skill-name" -> "https://github.com/owner/repo"
+            if "@" in name and "/" in name:
+                repo_part = name.split("@")[0]
+                item["install_url"] = f"https://github.com/{repo_part}"
+
+    top_pick = all_tools[0] if all_tools else None
+    installed_list = [t for t in all_tools if t.get("installed", False)]
+    suggested_list = [t for t in all_tools if not t.get("installed", False)]
+
+    return {
+        "all": all_tools,
+        "top_pick": top_pick,
+        "installed": installed_list,
+        "suggested": suggested_list,
+    }
