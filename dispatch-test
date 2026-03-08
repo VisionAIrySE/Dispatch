@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# dispatch-test — verify Dispatch installation is working correctly
+set -euo pipefail
+
+SKILL_ROUTER_DIR="${HOME}/.claude/skill-router"
+HOOKS_DIR="${HOME}/.claude/hooks"
+CONFIG_FILE="${SKILL_ROUTER_DIR}/config.json"
+SETTINGS_FILE="${HOME}/.claude/settings.json"
+
+pass() { echo "  ✓ $1"; }
+fail() { echo "  ✗ $1"; FAILED=1; }
+FAILED=0
+
+echo ""
+echo "Dispatch setup verification"
+echo "──────────────────────────"
+echo ""
+
+# 1. Files present
+echo "Files:"
+[ -f "${SKILL_ROUTER_DIR}/classifier.py" ] && pass "classifier.py" || fail "classifier.py missing — run install.sh"
+[ -f "${SKILL_ROUTER_DIR}/evaluator.py" ] && pass "evaluator.py" || fail "evaluator.py missing — run install.sh"
+[ -f "${HOOKS_DIR}/skill-router.sh" ] && pass "skill-router.sh hook" || fail "skill-router.sh missing — run install.sh"
+
+echo ""
+echo "Python dependencies:"
+python3 -c "import anthropic" 2>/dev/null && pass "anthropic package" || fail "anthropic not installed — run: python3 -m pip install anthropic --user"
+
+echo ""
+echo "Hook registration:"
+if [ -f "${SETTINGS_FILE}" ] && python3 -c "
+import json, sys
+with open('${SETTINGS_FILE}') as f:
+    s = json.load(f)
+hooks = s.get('hooks', {}).get('UserPromptSubmit', [])
+if isinstance(hooks, list):
+    found = any('skill-router' in str(h) for h in hooks)
+elif isinstance(hooks, str):
+    found = 'skill-router' in hooks
+else:
+    found = False
+sys.exit(0 if found else 1)
+" 2>/dev/null; then
+    pass "UserPromptSubmit hook registered"
+else
+    fail "Hook not registered in settings.json — run install.sh"
+fi
+
+echo ""
+echo "Auth mode:"
+if [ -f "${CONFIG_FILE}" ]; then
+    TOKEN=$(python3 -c "import json; print(json.load(open('${CONFIG_FILE}')).get('token',''))" 2>/dev/null || echo "")
+    if [ -n "${TOKEN}" ]; then
+        pass "Hosted mode — token found in config.json"
+        # Quick connectivity check
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "$(python3 -c "import json; print(json.load(open('${CONFIG_FILE}')).get('endpoint','https://dispatch.visionairy.biz'))")/health" \
+            --max-time 3 2>/dev/null || echo "000")
+        [ "${STATUS}" = "200" ] && pass "Server reachable (${STATUS})" || fail "Server not reachable (status: ${STATUS}) — check internet connection"
+    else
+        fail "config.json exists but no token — re-run install.sh"
+    fi
+elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    pass "BYOK mode — ANTHROPIC_API_KEY set"
+else
+    fail "No auth configured — run install.sh to connect, or set ANTHROPIC_API_KEY"
+fi
+
+echo ""
+echo "npx / skills registry:"
+if command -v npx &>/dev/null; then
+    pass "npx available"
+else
+    fail "npx not found — install Node.js from https://nodejs.org"
+fi
+
+echo ""
+if [ "${FAILED}" -eq 0 ]; then
+    echo "All checks passed. Start a new Claude Code session to activate Dispatch."
+else
+    echo "Some checks failed. Fix the issues above, then start a new Claude Code session."
+    exit 1
+fi
+echo ""

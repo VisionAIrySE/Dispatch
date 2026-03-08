@@ -228,9 +228,10 @@ def rank_recommendations(
     installed_plugins: list,
     installed_skills: list,
     registry_results: list,
-    context_snippet: str = None
+    context_snippet: str = None,
+    model: str = "claude-haiku-4-5-20251001"
 ) -> dict:
-    """Use Haiku to rank all tools collectively by relevance. Returns {all: [...]}."""
+    """Rank all tools collectively by relevance. Model defaults to Haiku; pass Sonnet for Pro."""
     try:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
@@ -268,7 +269,7 @@ Available from registry (not installed):
 Rank ALL relevant tools collectively for a {task_type} task."""
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=model,
             max_tokens=600,
             system=RANK_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_content}]
@@ -300,7 +301,7 @@ Rank ALL relevant tools collectively for a {task_type} task."""
         return {"all": []}
 
 
-def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None) -> dict:
+def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None, model: str = None) -> dict:
     """Full evaluation pipeline: scan installed -> search registry -> rank collectively.
 
     Returns:
@@ -323,7 +324,8 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
         installed_plugins=installed_plugins,
         installed_skills=installed_skills,
         registry_results=registry_results,
-        context_snippet=context_snippet
+        context_snippet=context_snippet,
+        model=model or "claude-haiku-4-5-20251001"
     )
 
     all_tools = result.get("all", [])

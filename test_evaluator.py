@@ -379,5 +379,42 @@ class TestScanMcpServers(unittest.TestCase):
         assert github_count == 1
 
 
+class TestRankRecommendationsModel(unittest.TestCase):
+    @patch('evaluator.anthropic.Anthropic')
+    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
+    def test_uses_provided_model(self, mock_client_cls):
+        """rank_recommendations passes the model param to the Anthropic client."""
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text='{"all": []}')]
+        mock_client.messages.create.return_value = mock_response
+
+        rank_recommendations("flutter", [], [], [], model="claude-sonnet-4-6")
+
+        _, kwargs = mock_client.messages.create.call_args
+        assert kwargs["model"] == "claude-sonnet-4-6"
+
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_build_passes_model_to_rank(self, mock_rank, _skills, _registry):
+        """build_recommendation_list forwards model param to rank_recommendations."""
+        mock_rank.return_value = {"all": []}
+        build_recommendation_list("flutter", installed_plugins=[], model="claude-sonnet-4-6")
+        _, kwargs = mock_rank.call_args
+        assert kwargs.get("model") == "claude-sonnet-4-6"
+
+    @patch('evaluator.search_registry', return_value=[])
+    @patch('evaluator.get_installed_skills', return_value=[])
+    @patch('evaluator.rank_recommendations')
+    def test_build_defaults_to_haiku(self, mock_rank, _skills, _registry):
+        """build_recommendation_list defaults to Haiku when model not specified."""
+        mock_rank.return_value = {"all": []}
+        build_recommendation_list("flutter", installed_plugins=[])
+        _, kwargs = mock_rank.call_args
+        assert kwargs.get("model") == "claude-haiku-4-5-20251001"
+
+
 if __name__ == '__main__':
     unittest.main()
