@@ -258,6 +258,32 @@ CONF_OK=$(python3 -c "print('yes' if float('$CONFIDENCE') >= 0.7 else 'no')" 2>/
 [ "$CONF_OK" != "yes" ] && exit 0
 
 # ── Stage 2: Evaluate + render UI ─────────────────────────────────────────
+# Shared context: extract last 3 user messages before the hosted/BYOK split
+# so both paths (including hosted fallback) use the same enriched context.
+CONTEXT_SNIPPET=$(python3 -c "
+import json, sys, os
+sys.path.insert(0, sys.argv[1])
+try:
+    from classifier import extract_recent_messages
+    transcript_path = sys.argv[2]
+    transcript = []
+    if transcript_path and os.path.exists(transcript_path):
+        with open(transcript_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try: transcript.append(json.loads(line))
+                    except: pass
+    recent = extract_recent_messages(transcript, n=3)
+except Exception:
+    recent = []
+current = sys.argv[3] if len(sys.argv) > 3 else ''
+if current:
+    recent.append(current)
+    recent = recent[-3:]
+print(' | '.join(recent))
+" "$SKILL_ROUTER_DIR" "$TRANSCRIPT_PATH" "$CURRENT_PROMPT" 2>/dev/null || echo "$CURRENT_PROMPT")
+
 if [ -n "$DISPATCH_TOKEN" ]; then
     # ── Hosted rank ────────────────────────────────────────────────────────
     RANK_TMP=$(mktemp)
@@ -266,18 +292,16 @@ import json, sys, os
 sys.path.insert(0, sys.argv[2])
 try:
     from evaluator import scan_installed_plugins, get_installed_skills, PLUGINS_DIR
-    from classifier import extract_recent_messages
     installed_plugins = scan_installed_plugins(PLUGINS_DIR)
     installed_skills = get_installed_skills()
 except Exception:
     installed_plugins = []
     installed_skills = []
-
-# Extract last 3 user messages for richer ranking context
-transcript_path = sys.argv[3]
-transcript = []
-if transcript_path and os.path.exists(transcript_path):
-    try:
+try:
+    from classifier import extract_recent_messages
+    transcript_path = sys.argv[3]
+    transcript = []
+    if transcript_path and os.path.exists(transcript_path):
         with open(transcript_path) as f:
             for line in f:
                 line = line.strip()
@@ -286,9 +310,6 @@ if transcript_path and os.path.exists(transcript_path):
                         transcript.append(json.loads(line))
                     except Exception:
                         pass
-    except Exception:
-        pass
-try:
     recent = extract_recent_messages(transcript, n=3)
 except Exception:
     recent = []
@@ -324,34 +345,10 @@ import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
 print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2])))
-" "$TASK_TYPE" "$CURRENT_PROMPT" "$SKILL_ROUTER_DIR" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" 2>/dev/null || echo '{"installed":[],"suggested":[]}')
     fi
 else
     # ── BYOK rank ──────────────────────────────────────────────────────────
-    CONTEXT_SNIPPET=$(python3 -c "
-import json, sys, os
-sys.path.insert(0, sys.argv[1])
-try:
-    from classifier import extract_recent_messages
-    transcript_path = sys.argv[2]
-    transcript = []
-    if transcript_path and os.path.exists(transcript_path):
-        with open(transcript_path) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try: transcript.append(json.loads(line))
-                    except: pass
-    recent = extract_recent_messages(transcript, n=3)
-except Exception:
-    recent = []
-current = sys.argv[3] if len(sys.argv) > 3 else ''
-if current:
-    recent.append(current)
-    recent = recent[-3:]
-print(' | '.join(recent))
-" "$SKILL_ROUTER_DIR" "$TRANSCRIPT_PATH" "$CURRENT_PROMPT" 2>/dev/null || echo "$CURRENT_PROMPT")
-
     RECOMMENDATIONS=$(python3 -c "
 import sys, json
 sys.path.insert(0, sys.argv[3])
