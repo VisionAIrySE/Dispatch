@@ -36,6 +36,20 @@ class TestGetInstalledSkills(unittest.TestCase):
         result = get_installed_skills()
         assert isinstance(result, list)
 
+    def test_returns_dicts_with_id_and_description(self):
+        """get_installed_skills must return list of dicts with id and description."""
+        with patch("evaluator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="firebase-firestore-basics  Build Firestore-powered Claude agents\nsupabase-postgres  PostgreSQL best practices for Supabase\n"
+            )
+            result = get_installed_skills()
+        assert isinstance(result, list)
+        if result:
+            assert isinstance(result[0], dict)
+            assert "id" in result[0]
+            assert "description" in result[0]
+
 
 class TestSearchRegistry(unittest.TestCase):
     def test_returns_list_for_known_type(self):

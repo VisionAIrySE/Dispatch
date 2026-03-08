@@ -85,8 +85,11 @@ def get_installed_skills() -> list:
     """Get list of installed agent skills via npx skills list. Cached for 1 hour."""
     cache = _load_cache()
     entry = cache.get("installed_skills", {})
+    cached_data = entry.get("data", [])
     if entry and (time.time() - entry.get("fetched_at", 0)) < CACHE_TTL:
-        return entry["data"]
+        # Guard: if cached data is legacy bare strings, treat as expired
+        if not cached_data or isinstance(cached_data[0], dict):
+            return cached_data
     try:
         result = subprocess.run(
             ["npx", "--yes", "skills", "list", "-g"],
@@ -98,9 +101,16 @@ def get_installed_skills() -> list:
         cleaned = []
         for line in lines:
             stripped = strip_ansi(line).strip()
-            # Keep only lines that look like skill identifiers (hyphenated, no spaces)
-            if stripped and not stripped.startswith("No ") and " " not in stripped and "-" in stripped:
-                cleaned.append(stripped)
+            if not stripped or stripped.startswith("No "):
+                continue
+            parts = stripped.split()
+            if not parts:
+                continue
+            skill_id = parts[0]
+            # Skill IDs contain hyphens and no spaces; exclude registry-style "owner/repo@skill"
+            if "-" in skill_id and "/" not in skill_id:
+                description = " ".join(parts[1:]) if len(parts) > 1 else ""
+                cleaned.append({"id": skill_id, "description": description})
         cache["installed_skills"] = {"data": cleaned, "fetched_at": time.time()}
         _save_cache(cache)
         return cleaned
@@ -203,13 +213,20 @@ def rank_recommendations(
             else:
                 registry_formatted.append({"id": r, "desc": ""})
 
+        skills_formatted = []
+        for s in installed_skills:
+            if isinstance(s, dict):
+                skills_formatted.append({"id": s.get("id", ""), "desc": s.get("description", "")[:200]})
+            else:
+                skills_formatted.append({"id": s, "desc": ""})
+
         user_content = f"""Developer is working on: {task_type}{context_line}
 
 Installed plugins ({len(installed_plugins)}):
 {json.dumps([{"name": p["name"], "desc": p["description"][:100]} for p in installed_plugins], indent=2)}
 
 Installed skills:
-{json.dumps(installed_skills, indent=2)}
+{json.dumps(skills_formatted, indent=2)}
 
 Available from registry (not installed):
 {json.dumps(registry_formatted, indent=2)}
