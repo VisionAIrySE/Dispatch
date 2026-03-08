@@ -47,6 +47,13 @@ Rules:
 - For uninstalled registry tools: use the "id" field as the tool name in your response; "installed": false; include install_cmd using the exact id
 - Write specific reasons grounded in what the developer is actually doing
 - If nothing is relevant, return {"all": []}
+
+Reason quality examples:
+GOOD: "Provides Flutter widget testing patterns directly applicable to the crash you are diagnosing in the rendering pipeline."
+BAD: "Useful for Flutter development." (too generic, not grounded in the current task)
+GOOD: "Adds Firestore query helpers relevant to the user authentication flow you are building."
+BAD: "Firebase support for agents." (repeats the tool name, adds nothing)
+Write reasons like the GOOD examples — one sentence, specific to what the developer just said they are doing.
 """
 
 
@@ -223,7 +230,7 @@ def rank_recommendations(
         user_content = f"""Developer is working on: {task_type}{context_line}
 
 Installed plugins ({len(installed_plugins)}):
-{json.dumps([{"name": p["name"], "desc": p["description"][:100]} for p in installed_plugins], indent=2)}
+{json.dumps([{"name": p["name"], "desc": p["description"][:250]} for p in installed_plugins], indent=2)}
 
 Installed skills:
 {json.dumps(skills_formatted, indent=2)}

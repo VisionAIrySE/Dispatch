@@ -157,6 +157,27 @@ class TestRankRecommendations(unittest.TestCase):
         result = rank_recommendations("flutter", [], [], [])
         assert result == {"all": []}
 
+    @patch('evaluator.anthropic.Anthropic')
+    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
+    def test_passes_full_250_char_description(self, mock_client_cls):
+        """Plugin description passed to Haiku is truncated at 250, not 100."""
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        mock_client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text='{"all": []}')]
+        )
+        long_desc = "x" * 300
+        rank_recommendations(
+            task_type="flutter",
+            installed_plugins=[{"name": "my-plugin", "description": long_desc}],
+            installed_skills=[],
+            registry_results=[]
+        )
+        call_args = mock_client.messages.create.call_args
+        user_content = call_args[1]["messages"][0]["content"]
+        assert "x" * 250 in user_content
+        assert "x" * 251 not in user_content
+
 
 class TestBuildRecommendationList(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
