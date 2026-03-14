@@ -62,96 +62,54 @@ class TestSearchRegistry(unittest.TestCase):
 
 
 class TestRankRecommendations(unittest.TestCase):
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_returns_all_tools_with_scores(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "all": [
-                    {"name": "flutter-mobile-app-dev", "score": 90, "installed": True, "reason": "Direct Flutter support"},
-                    {"name": "firebase/agent-skills@firebase-basics", "score": 70, "installed": False,
-                     "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
-                     "reason": "Firebase integration"}
-                ]
-            }))]
-        )
-        result = rank_recommendations(
-            task_type="flutter",
-            installed_plugins=[{"name": "flutter-mobile-app-dev", "description": "Flutter dev"}],
-            installed_skills=[],
-            registry_results=[{"id": "firebase/agent-skills@firebase-basics", "description": "Firebase integration for agents"}]
-        )
+    def _mock_response(self, text):
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text=text)]
+        return mock_resp
+
+    def test_returns_cc_score_and_all(self):
+        from evaluator import rank_recommendations
+        payload = json.dumps({
+            "cc_score": 72,
+            "all": [{"name": "owner/repo@skill", "score": 88, "installed": False,
+                     "install_cmd": "npx skills add owner/repo@skill -y",
+                     "reason": "Better for this task"}]
+        })
+        with patch("evaluator.anthropic.Anthropic") as MockClient:
+            MockClient.return_value.messages.create.return_value = self._mock_response(payload)
+            result = rank_recommendations(
+                task_type="flutter-building",
+                registry_results=[{"id": "owner/repo@skill", "description": "Flutter skill"}],
+                context_snippet="building a flutter widget",
+                cc_tool="superpowers:brainstorming",
+                cc_tool_description="Brainstorm before building"
+            )
+        assert "cc_score" in result
+        assert isinstance(result["cc_score"], int)
         assert "all" in result
-        assert len(result["all"]) == 2
-        assert result["all"][0]["name"] == "flutter-mobile-app-dev"
-        assert result["all"][0]["score"] == 90
-        assert result["all"][1]["installed"] is False
+        assert len(result["all"]) == 1
 
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_normalizes_old_format_to_all_list(self, mock_client_cls):
-        """If Haiku returns old {installed, suggested} format, convert to {all: [...]}."""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "installed": [{"name": "flutter-mobile-app-dev", "reason": "Flutter support"}],
-                "suggested": [{"name": "firebase/agent-skills@firebase-basics",
-                               "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
-                               "reason": "Firebase"}]
-            }))]
-        )
-        result = rank_recommendations("flutter", [], [], [])
-        assert "all" in result
-        assert len(result["all"]) == 2
-        # installed items get score 70, suggested get 60
-        installed_items = [t for t in result["all"] if t.get("installed")]
-        suggested_items = [t for t in result["all"] if not t.get("installed")]
-        assert len(installed_items) == 1
-        assert installed_items[0]["score"] == 70
-        assert len(suggested_items) == 1
-        assert suggested_items[0]["score"] == 60
+    def test_returns_safe_default_on_api_failure(self):
+        from evaluator import rank_recommendations
+        with patch("evaluator.anthropic.Anthropic", side_effect=Exception("no key")):
+            result = rank_recommendations("flutter", [], cc_tool="some-tool")
+        assert result == {"cc_score": 0, "all": []}
 
-    @patch('evaluator.anthropic.Anthropic')
-    def test_handles_ranking_failure_gracefully(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.side_effect = Exception("API error")
-        result = rank_recommendations("flutter", [], [], [])
-        assert result == {"all": []}
+    def test_strips_markdown_wrapper(self):
+        from evaluator import rank_recommendations
+        wrapped = '```json\n{"cc_score": 65, "all": []}\n```'
+        with patch("evaluator.anthropic.Anthropic") as MockClient:
+            MockClient.return_value.messages.create.return_value = self._mock_response(wrapped)
+            result = rank_recommendations("general", [], cc_tool="x")
+        assert result["cc_score"] == 65
 
-    @patch('evaluator.anthropic.Anthropic')
-    def test_handles_malformed_ranking_response(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="not json")]
-        )
-        result = rank_recommendations("flutter", [], [], [])
-        assert result == {"all": []}
-
-    @patch('evaluator.anthropic.Anthropic')
-    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'})
-    def test_passes_full_250_char_description(self, mock_client_cls):
-        """Plugin description passed to Haiku is truncated at 250, not 100."""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text='{"all": []}')]
-        )
-        long_desc = "x" * 300
-        rank_recommendations(
-            task_type="flutter",
-            installed_plugins=[{"name": "my-plugin", "description": long_desc}],
-            installed_skills=[],
-            registry_results=[]
-        )
-        call_args = mock_client.messages.create.call_args
-        user_content = call_args[1]["messages"][0]["content"]
-        assert "x" * 250 in user_content
-        assert "x" * 251 not in user_content
+    def test_no_cc_tool_still_works(self):
+        from evaluator import rank_recommendations
+        payload = json.dumps({"cc_score": 0, "all": []})
+        with patch("evaluator.anthropic.Anthropic") as MockClient:
+            MockClient.return_value.messages.create.return_value = self._mock_response(payload)
+            result = rank_recommendations("general", [])
+        assert result == {"cc_score": 0, "all": []}
 
 
 class TestBuildRecommendationList(unittest.TestCase):
@@ -215,8 +173,8 @@ class TestRankHandlesEmptyContentList(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.content = []
         mock_client.messages.create.return_value = mock_response
-        result = rank_recommendations("flutter", [], [], [])
-        assert result == {"all": []}
+        result = rank_recommendations("flutter", [])
+        assert result == {"cc_score": 0, "all": []}
 
 
 class TestBuildRecommendationListInstallUrl(unittest.TestCase):
@@ -314,7 +272,7 @@ class TestRankRecommendationsModel(unittest.TestCase):
         mock_response.content = [MagicMock(text='{"all": []}')]
         mock_client.messages.create.return_value = mock_response
 
-        rank_recommendations("flutter", [], [], [], model="claude-sonnet-4-6")
+        rank_recommendations("flutter", [], model="claude-sonnet-4-6")
 
         _, kwargs = mock_client.messages.create.call_args
         assert kwargs["model"] == "claude-sonnet-4-6"

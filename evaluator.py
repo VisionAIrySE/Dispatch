@@ -25,33 +25,33 @@ def _save_cache(cache: dict):
         pass
 
 RANK_SYSTEM_PROMPT = """You are a plugin recommendation engine for Claude Code.
-Given a detected task type and lists of available plugins/skills,
-rank ALL relevant tools collectively by usefulness for the specific task.
+Given a detected task type, the tool CC is about to use, and marketplace alternatives,
+score CC's chosen tool AND each marketplace alternative for this specific task.
 
 Respond with ONLY valid JSON:
 {
+  "cc_score": 72,
   "all": [
-    {"name": "...", "score": 90, "installed": true, "reason": "one specific sentence grounded in the current task"},
-    {"name": "...", "score": 75, "installed": false, "install_cmd": "npx skills add owner/repo@skill-name -y", "reason": "one specific sentence grounded in the current task"}
+    {"name": "owner/repo@skill-name", "score": 88, "installed": false,
+     "install_cmd": "npx skills add owner/repo@skill-name -y",
+     "reason": "one specific sentence grounded in the current task"}
   ]
 }
 
 Rules:
-- score 0-100 based on relevance to the specific task (not general quality)
-- Only include tools with score >= 40
-- Limit to top 6 total across installed and uninstalled
-- Sort by score descending (highest first)
-- For installed tools: "installed": true, no install_cmd
-- For uninstalled registry tools: use the "id" field as the tool name in your response; "installed": false; include install_cmd using the exact id
-- Write specific reasons grounded in what the developer is actually doing
-- If nothing is relevant, return {"all": []}
+- cc_score: 0-100 relevance score for CC's built-in tool/approach for this specific task
+- all: marketplace tools only (not CC's tool); score 0-100 by relevance
+- Only include marketplace tools with score >= 40
+- Limit to top 5 marketplace tools, sorted by score descending
+- For registry tools: use the "id" field as the tool name; include install_cmd using the exact id
+- Write specific reasons grounded in what the developer is actually doing — not generic praise
+- If no marketplace tools are relevant, return {"cc_score": <score>, "all": []}
 
-Reason quality examples:
-GOOD: "Provides Flutter widget testing patterns directly applicable to the crash you are diagnosing in the rendering pipeline."
-BAD: "Useful for Flutter development." (too generic, not grounded in the current task)
-GOOD: "Adds Firestore query helpers relevant to the user authentication flow you are building."
-BAD: "Firebase support for agents." (repeats the tool name, adds nothing)
-Write reasons like the GOOD examples — one sentence, specific to what the developer just said they are doing.
+Reason quality:
+GOOD: "Provides Firestore query helpers directly applicable to the auth flow you are building."
+BAD: "Useful for Firebase." (too generic)
+GOOD: "Adds Flutter widget testing patterns matching the rendering crash you are diagnosing."
+BAD: "Firebase support for agents." (repeats tool name, adds nothing)
 """
 
 
@@ -158,22 +158,26 @@ def search_registry(task_type: str, limit: int = 5) -> list:
 
 def rank_recommendations(
     task_type: str,
-    installed_plugins: list,
-    installed_skills: list,
     registry_results: list,
     context_snippet: str = None,
+    cc_tool: str = None,
+    cc_tool_description: str = None,
     model: str = "claude-haiku-4-5-20251001"
 ) -> dict:
-    """Rank all tools collectively by relevance. Model defaults to Haiku; pass Sonnet for Pro."""
+    """Score CC's chosen tool + marketplace alternatives collectively.
+
+    Returns {"cc_score": int, "all": [{name, score, installed, reason, install_cmd?}]}
+    """
     try:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            return {"all": []}
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-        context_line = f"\nUser's current message: \"{context_snippet[:200]}\"" if context_snippet else ""
+        context_line = f"\nUser's current task: \"{context_snippet[:200]}\"" if context_snippet else ""
 
-        # Format registry results: handle both {id, description} dicts and legacy bare strings
+        cc_tool_line = ""
+        if cc_tool:
+            desc = f" — {cc_tool_description[:150]}" if cc_tool_description else ""
+            cc_tool_line = f"\nCC's chosen tool: {cc_tool}{desc}"
+
         registry_formatted = []
         for r in registry_results:
             if isinstance(r, dict):
@@ -181,25 +185,12 @@ def rank_recommendations(
             else:
                 registry_formatted.append({"id": r, "desc": ""})
 
-        skills_formatted = []
-        for s in installed_skills:
-            if isinstance(s, dict):
-                skills_formatted.append({"id": s.get("id", ""), "desc": s.get("description", "")[:200]})
-            else:
-                skills_formatted.append({"id": s, "desc": ""})
+        user_content = f"""Task type: {task_type}{context_line}{cc_tool_line}
 
-        user_content = f"""Developer is working on: {task_type}{context_line}
-
-Installed plugins ({len(installed_plugins)}):
-{json.dumps([{"name": p["name"], "desc": p["description"][:250]} for p in installed_plugins], indent=2)}
-
-Installed skills:
-{json.dumps(skills_formatted, indent=2)}
-
-Available from registry (not installed):
+Marketplace alternatives (not installed):
 {json.dumps(registry_formatted, indent=2)}
 
-Rank ALL relevant tools collectively for a {task_type} task."""
+Score CC's tool and each marketplace alternative for this {task_type} task."""
 
         response = client.messages.create(
             model=model,
@@ -209,29 +200,19 @@ Rank ALL relevant tools collectively for a {task_type} task."""
         )
 
         if not response.content:
-            return {"all": []}
+            return {"cc_score": 0, "all": []}
         text = response.content[0].text.strip()
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
                 text = text[4:]
         parsed = json.loads(text.strip())
-        # Normalize: if Haiku returns old format, convert it
-        if "all" not in parsed and ("installed" in parsed or "suggested" in parsed):
-            combined = []
-            for item in parsed.get("installed", []):
-                item.setdefault("installed", True)
-                item.setdefault("score", 70)
-                combined.append(item)
-            for item in parsed.get("suggested", []):
-                item.setdefault("installed", False)
-                item.setdefault("score", 60)
-                combined.append(item)
-            parsed = {"all": combined}
+        parsed.setdefault("cc_score", 0)
+        parsed.setdefault("all", [])
         return parsed
 
     except Exception:
-        return {"all": []}
+        return {"cc_score": 0, "all": []}
 
 
 def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None, model: str = None) -> dict:
@@ -255,8 +236,6 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
     registry_results = search_registry(task_type)
     result = rank_recommendations(
         task_type=task_type,
-        installed_plugins=installed_plugins,
-        installed_skills=installed_skills,
         registry_results=registry_results,
         context_snippet=context_snippet,
         model=model or "claude-haiku-4-5-20251001"
