@@ -371,6 +371,12 @@ class TestDescribeCcTool(unittest.TestCase):
 
 
 class TestSearchByCategory(unittest.TestCase):
+    def test_returns_empty_when_load_categories_unavailable(self):
+        from evaluator import search_by_category
+        with patch("evaluator._load_categories", None):
+            result = search_by_category("mobile")
+        assert result == []
+
     def test_returns_list(self):
         from evaluator import search_by_category
         with patch("evaluator._search_one_term", return_value=[]):
