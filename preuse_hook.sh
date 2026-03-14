@@ -102,6 +102,13 @@ from interceptor import get_context_snippet
 print(get_context_snippet())
 " "$SKILL_ROUTER_DIR" 2>/dev/null || echo "")
 
+CATEGORY=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import get_category
+print(get_category())
+" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "unknown")
+
 # ── Evaluate marketplace alternatives ─────────────────────────────────────
 RANK_TMP=$(mktemp)
 trap 'rm -f "${RANK_TMP:-}" 2>/dev/null' EXIT
@@ -114,8 +121,9 @@ print(json.dumps({
     'task_type': sys.argv[1],
     'context_snippet': sys.argv[2],
     'cc_tool': sys.argv[3],
+    'category_id': sys.argv[4],
 }))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" > "$RANK_TMP" 2>/dev/null
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" > "$RANK_TMP" 2>/dev/null
 
     RANK_HTTP=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/rank" \
@@ -135,8 +143,8 @@ print(json.dumps({
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4])))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" 2>/dev/null || echo '{"all":[],"cc_score":0}')
     fi
 else
     # BYOK path
@@ -144,8 +152,8 @@ else
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4])))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" 2>/dev/null || echo '{"all":[],"cc_score":0}')
 fi
 
 # ── Check threshold: any marketplace tool beats CC by >= THRESHOLD? ────────
