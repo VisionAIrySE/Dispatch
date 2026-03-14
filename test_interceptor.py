@@ -153,6 +153,23 @@ class TestStateHelpers(unittest.TestCase):
             result = get_context_snippet()
         assert result == "fixing a widget crash"
 
+    def test_get_category(self):
+        from interceptor import get_category
+        with self._patch_state():
+            # setUp writes {"last_task_type": "flutter-building", "last_context_snippet": "..."}
+            # No last_category in that state — should default to "unknown"
+            result = get_category()
+        assert result == "unknown"
+
+    def test_get_category_returns_stored_value(self):
+        from interceptor import get_category
+        import json
+        with open(self.state_path, "w") as f:
+            json.dump({"last_category": "mobile"}, f)
+        with self._patch_state():
+            result = get_category()
+        assert result == "mobile"
+
 
 if __name__ == "__main__":
     unittest.main()

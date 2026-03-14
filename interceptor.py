@@ -95,3 +95,13 @@ def get_context_snippet() -> str:
         return d.get("last_context_snippet", "")
     except Exception:
         return ""
+
+
+def get_category() -> str:
+    """Read the last detected category from state.json."""
+    try:
+        with open(STATE_FILE) as f:
+            d = json.load(f)
+        return d.get("last_category") or "unknown"
+    except Exception:
+        return "unknown"
