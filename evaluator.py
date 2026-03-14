@@ -5,6 +5,11 @@ import subprocess
 import time
 import anthropic
 
+try:
+    from category_mapper import load_categories as _load_categories
+except ImportError:
+    _load_categories = None
+
 CACHE_FILE = os.path.expanduser("~/.claude/skill-router/npx_cache.json")
 CACHE_TTL = 3600  # 1 hour
 
@@ -156,6 +161,36 @@ def search_registry(task_type: str, limit: int = 5) -> list:
     return results[:limit]
 
 
+def search_by_category(category_id: str, limit: int = 10) -> list:
+    """Search registry using all search_terms for a known category.
+
+    More targeted than search_registry() — uses the full category term list
+    rather than splitting the task_type string.
+    Returns combined, deduplicated list of {"id", "description"}.
+    """
+    if _load_categories is None:
+        return []
+    try:
+        categories = _load_categories()
+    except Exception:
+        return []
+
+    cat = next((c for c in categories if c.get("id") == category_id), None)
+    if not cat:
+        return []
+
+    seen_ids: set = set()
+    results = []
+    for term in cat.get("search_terms", [])[:5]:  # cap at 5 terms per category
+        for skill in _search_one_term(term, limit=5):
+            if skill["id"] not in seen_ids:
+                seen_ids.add(skill["id"])
+                results.append(skill)
+        if len(results) >= limit:
+            break
+    return results[:limit]
+
+
 def rank_recommendations(
     task_type: str,
     registry_results: list,
@@ -219,7 +254,8 @@ def build_recommendation_list(
     task_type: str,
     context_snippet: str = None,
     cc_tool: str = None,
-    model: str = None
+    model: str = None,
+    category_id: str = None
 ) -> dict:
     """Search marketplace registry and rank against CC's chosen tool.
 
@@ -230,7 +266,11 @@ def build_recommendation_list(
             "cc_score": int (0-100 score for CC's chosen tool),
         }
     """
-    registry_results = search_registry(task_type)
+    # Use category-based search when available — more targeted than keyword splitting
+    if category_id and category_id != "unknown":
+        registry_results = search_by_category(category_id)
+    else:
+        registry_results = search_registry(task_type)
     cc_desc = describe_cc_tool(cc_tool) if cc_tool else ""
 
     result = rank_recommendations(

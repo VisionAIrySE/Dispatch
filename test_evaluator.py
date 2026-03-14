@@ -165,6 +165,20 @@ class TestBuildRecommendationList(unittest.TestCase):
         assert "installed" not in result
         assert "suggested" not in result
 
+    def test_uses_category_search_when_category_id_provided(self):
+        from evaluator import build_recommendation_list
+        search_calls = []
+        def mock_search_by_cat(category_id):
+            search_calls.append(category_id)
+            return []
+        with patch("evaluator.search_by_category", side_effect=mock_search_by_cat), \
+             patch("evaluator.search_registry", return_value=[]) as mock_registry, \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 0, "all": []}):
+            build_recommendation_list("flutter-building", category_id="mobile")
+        assert len(search_calls) == 1
+        assert search_calls[0] == "mobile"
+        mock_registry.assert_not_called()
+
 
 class TestBuildRecommendationListWithContext(unittest.TestCase):
     @patch('evaluator.search_registry', return_value=[])
@@ -354,6 +368,37 @@ class TestDescribeCcTool(unittest.TestCase):
     def test_empty_string_input_returns_empty(self):
         result = describe_cc_tool("")
         assert result == ""
+
+
+class TestSearchByCategory(unittest.TestCase):
+    def test_returns_list(self):
+        from evaluator import search_by_category
+        with patch("evaluator._search_one_term", return_value=[]):
+            result = search_by_category("mobile")
+        assert isinstance(result, list)
+
+    def test_unknown_category_id_returns_empty(self):
+        from evaluator import search_by_category
+        result = search_by_category("nonexistent-category-xyz")
+        assert result == []
+
+    def test_searches_category_terms(self):
+        from evaluator import search_by_category
+        calls = []
+        def mock_search(term, limit=5):
+            calls.append(term)
+            return []
+        with patch("evaluator._search_one_term", side_effect=mock_search):
+            search_by_category("mobile")
+        assert len(calls) > 0
+
+    def test_deduplicates_results(self):
+        from evaluator import search_by_category
+        duplicate = {"id": "owner/repo@skill", "description": "desc"}
+        with patch("evaluator._search_one_term", return_value=[duplicate]):
+            result = search_by_category("mobile")
+        ids = [r["id"] for r in result]
+        assert len(ids) == len(set(ids))
 
 
 if __name__ == '__main__':
