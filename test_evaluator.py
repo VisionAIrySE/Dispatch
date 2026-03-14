@@ -5,7 +5,8 @@ from unittest.mock import patch, MagicMock
 from evaluator import (
     search_registry,
     rank_recommendations,
-    build_recommendation_list
+    build_recommendation_list,
+    describe_cc_tool
 )
 
 
@@ -335,6 +336,43 @@ class TestRankRecommendationsModel(unittest.TestCase):
         build_recommendation_list("flutter", installed_plugins=[])
         _, kwargs = mock_rank.call_args
         assert kwargs.get("model") == "claude-haiku-4-5-20251001"
+
+
+class TestDescribeCcTool(unittest.TestCase):
+    def test_returns_string(self):
+        result = describe_cc_tool("superpowers:brainstorming")
+        assert isinstance(result, str)
+
+    def test_returns_empty_string_on_unknown(self):
+        result = describe_cc_tool("nonexistent-tool-xyz-abc")
+        assert result == ""
+
+    def test_finds_skill_in_cache(self):
+        fake_cache = {
+            "installed_skills": {
+                "data": [
+                    {"id": "superpowers:brainstorming", "description": "Brainstorm before building"}
+                ],
+                "fetched_at": 9999999999
+            }
+        }
+        with patch("evaluator._load_cache", return_value=fake_cache):
+            result = describe_cc_tool("superpowers:brainstorming")
+        assert result == "Brainstorm before building"
+
+    def test_finds_mcp_server_by_prefix(self):
+        fake_mcp = json.dumps({
+            "mcpServers": {
+                "github": {"description": "GitHub API integration"}
+            }
+        })
+        with patch("builtins.open", unittest.mock.mock_open(read_data=fake_mcp)):
+            result = describe_cc_tool("github (create_pull_request)")
+        assert "GitHub" in result
+
+    def test_empty_string_input_returns_empty(self):
+        result = describe_cc_tool("")
+        assert result == ""
 
 
 if __name__ == '__main__':

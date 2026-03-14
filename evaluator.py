@@ -60,6 +60,36 @@ def strip_ansi(text: str) -> str:
     return re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', text)
 
 
+def describe_cc_tool(cc_tool: str) -> str:
+    """Best-effort description lookup for the tool CC is about to invoke.
+
+    Checks installed skills cache first, then ~/.claude/.mcp.json.
+    Returns empty string if nothing found — ranker uses tool name only.
+    """
+    if not cc_tool:
+        return ""
+
+    # Check installed skills cache (populated by search_registry calls)
+    cache = _load_cache()
+    skills = cache.get("installed_skills", {}).get("data", [])
+    for s in skills:
+        if isinstance(s, dict) and s.get("id") == cc_tool:
+            return s.get("description", "")
+
+    # Check MCP servers — cc_tool format is "server_name (operation)" or just "server_name"
+    mcp_path = os.path.expanduser("~/.claude/.mcp.json")
+    try:
+        with open(mcp_path) as f:
+            data = json.load(f)
+        for server_name, config in data.get("mcpServers", {}).items():
+            if server_name in cc_tool:
+                return config.get("description", f"MCP server: {server_name}")
+    except Exception:
+        pass
+
+    return ""
+
+
 def _search_one_term(term: str, limit: int = 5) -> list:
     """Search registry for one term. Returns list of {"id", "description"}. Cached 1hr."""
     cache = _load_cache()
