@@ -215,35 +215,37 @@ Score CC's tool and each marketplace alternative for this {task_type} task."""
         return {"cc_score": 0, "all": []}
 
 
-def build_recommendation_list(task_type: str, installed_plugins: list = None, installed_skills: list = None, context_snippet: str = None, model: str = None) -> dict:
-    """Full evaluation pipeline: search registry -> rank collectively.
-
-    In v0.7.0, installed-tool scanning is removed. If installed_plugins/installed_skills are not provided,
-    they default to empty lists.
+def build_recommendation_list(
+    task_type: str,
+    context_snippet: str = None,
+    cc_tool: str = None,
+    model: str = None
+) -> dict:
+    """Search marketplace registry and rank against CC's chosen tool.
 
     Returns:
         {
-            "all": [{name, score, installed, reason, install_cmd?, install_url?, marketplace?}],
-            "top_pick": {name, score, installed, reason, ...} or None,
-            "installed": [...],   # backward-compat: items from all where installed=True
-            "suggested": [...],   # backward-compat: items from all where installed=False
+            "all":      [{name, score, installed=False, reason, install_cmd, install_url}],
+            "top_pick": {first item} or None,
+            "cc_score": int (0-100 score for CC's chosen tool),
         }
     """
-    if installed_plugins is None:
-        installed_plugins = []
-    if installed_skills is None:
-        installed_skills = []
     registry_results = search_registry(task_type)
+    cc_desc = describe_cc_tool(cc_tool) if cc_tool else ""
+
     result = rank_recommendations(
         task_type=task_type,
         registry_results=registry_results,
         context_snippet=context_snippet,
+        cc_tool=cc_tool,
+        cc_tool_description=cc_desc,
         model=model or "claude-haiku-4-5-20251001"
     )
 
     all_tools = result.get("all", [])
+    cc_score = result.get("cc_score", 0)
 
-    # Score gap truncation: cut list at first gap >= 25 points
+    # Score gap truncation: cut at first gap >= 25 points
     if len(all_tools) > 1:
         cutoff = len(all_tools)
         for i in range(1, len(all_tools)):
@@ -253,28 +255,17 @@ def build_recommendation_list(task_type: str, installed_plugins: list = None, in
                 break
         all_tools = all_tools[:cutoff]
 
-    plugin_map = {p["name"]: p for p in installed_plugins}
-
+    # Derive GitHub install_url from skill ID format: "owner/repo@skill-name"
     for item in all_tools:
         name = item.get("name", "")
-        if item.get("installed", False):
-            # Add marketplace from local plugin scan
-            mp = plugin_map.get(name, {}).get("marketplace", "")
-            if mp:
-                item["marketplace"] = mp
-        else:
-            # Derive GitHub URL from skill ID: "owner/repo@skill-name" -> "https://github.com/owner/repo"
-            if "@" in name and "/" in name and "install_url" not in item:
-                repo_part = name.split("@")[0]
-                item["install_url"] = f"https://github.com/{repo_part}"
+        if "@" in name and "/" in name and "install_url" not in item:
+            repo_part = name.split("@")[0]
+            item["install_url"] = f"https://github.com/{repo_part}"
 
     top_pick = all_tools[0] if all_tools else None
-    installed_list = [t for t in all_tools if t.get("installed", False)]
-    suggested_list = [t for t in all_tools if not t.get("installed", False)]
 
     return {
         "all": all_tools,
         "top_pick": top_pick,
-        "installed": installed_list,
-        "suggested": suggested_list,
+        "cc_score": cc_score,
     }

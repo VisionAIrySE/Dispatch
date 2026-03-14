@@ -113,36 +113,57 @@ class TestRankRecommendations(unittest.TestCase):
 
 
 class TestBuildRecommendationList(unittest.TestCase):
-    @patch('evaluator.rank_recommendations')
-    def test_build_recommendation_list_returns_dict(self, mock_rank):
-        mock_rank.return_value = {"all": []}
-        result = build_recommendation_list("flutter")
-        assert isinstance(result, dict)
+    def _mock_rank(self, task_type, registry_results, context_snippet=None, cc_tool=None, cc_tool_description=None, model=None):
+        return {
+            "cc_score": 70,
+            "all": [
+                {"name": "owner/repo@flutter-skill", "score": 88, "installed": False,
+                 "install_cmd": "npx skills add owner/repo@flutter-skill -y",
+                 "reason": "Highly relevant"}
+            ]
+        }
+
+    def test_returns_required_keys(self):
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", side_effect=self._mock_rank):
+            result = build_recommendation_list("flutter-building", cc_tool="superpowers:brainstorming")
         assert "all" in result
         assert "top_pick" in result
-        assert "installed" in result
-        assert "suggested" in result
+        assert "cc_score" in result
 
-    @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.rank_recommendations')
-    def test_enriches_installed_items_with_marketplace(self, mock_rank, _registry):
-        mock_rank.return_value = {
-            "all": [{"name": "my-plugin", "score": 80, "installed": True, "reason": "relevant"}]
-        }
-        fake_plugins = [{"name": "my-plugin", "description": "desc", "marketplace": "skillsmarket", "source": "installed"}]
-        result = build_recommendation_list("flutter", installed_plugins=fake_plugins)
-        assert result["all"][0].get("marketplace") == "skillsmarket"
-        assert result["installed"][0].get("marketplace") == "skillsmarket"
+    def test_cc_score_passed_through(self):
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", side_effect=self._mock_rank):
+            result = build_recommendation_list("flutter-building", cc_tool="superpowers:brainstorming")
+        assert result["cc_score"] == 70
 
-    @patch('evaluator.search_registry', return_value=[])
-    @patch('evaluator.rank_recommendations')
-    def test_does_not_add_marketplace_when_absent(self, mock_rank, _registry):
-        mock_rank.return_value = {
-            "all": [{"name": "my-plugin", "score": 80, "installed": True, "reason": "relevant"}]
-        }
-        fake_plugins = [{"name": "my-plugin", "description": "desc", "marketplace": "", "source": "installed"}]
-        result = build_recommendation_list("flutter", installed_plugins=fake_plugins)
-        assert "marketplace" not in result["all"][0]
+    def test_score_gap_truncation_applied(self):
+        tools = [
+            {"name": "a", "score": 90, "installed": False},
+            {"name": "b", "score": 60, "installed": False},  # 30-point gap — truncate here
+            {"name": "c", "score": 55, "installed": False},
+        ]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 50, "all": tools}):
+            result = build_recommendation_list("anything")
+        assert len(result["all"]) == 1
+        assert result["all"][0]["name"] == "a"
+
+    def test_install_url_derived_from_skill_id(self):
+        tools = [{"name": "vercel-labs/skills@react-skill", "score": 80, "installed": False,
+                  "install_cmd": "npx skills add vercel-labs/skills@react-skill -y"}]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 60, "all": tools}):
+            result = build_recommendation_list("react")
+        item = result["all"][0]
+        assert item.get("install_url") == "https://github.com/vercel-labs/skills"
+
+    def test_no_installed_or_suggested_keys(self):
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 0, "all": []}):
+            result = build_recommendation_list("general")
+        assert "installed" not in result
+        assert "suggested" not in result
 
 
 class TestBuildRecommendationListWithContext(unittest.TestCase):
@@ -150,16 +171,14 @@ class TestBuildRecommendationListWithContext(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_passes_context_snippet_to_rank(self, mock_rank, _registry):
         """context_snippet is accepted and forwarded without crashing."""
-        mock_rank.return_value = {"all": []}
+        mock_rank.return_value = {"cc_score": 0, "all": []}
         result = build_recommendation_list(
             "flutter",
-            installed_plugins=[],
             context_snippet="debugging a null pointer crash in my Flutter widget"
         )
         assert isinstance(result, dict)
         assert "all" in result
-        assert "installed" in result
-        assert "suggested" in result
+        assert "cc_score" in result
         _, kwargs = mock_rank.call_args
         assert kwargs.get("context_snippet") == "debugging a null pointer crash in my Flutter widget"
 
@@ -182,35 +201,36 @@ class TestBuildRecommendationListInstallUrl(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_adds_install_url_for_uninstalled_skill(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [{"name": "firebase/agent-skills@firebase-basics", "score": 75,
                      "installed": False, "install_cmd": "npx skills add firebase/agent-skills@firebase-basics -y",
                      "reason": "Firebase support"}]
         }
-        result = build_recommendation_list("flutter", installed_plugins=[])
+        result = build_recommendation_list("flutter")
         item = result["all"][0]
         assert item.get("install_url") == "https://github.com/firebase/agent-skills"
-        assert len(result["suggested"]) == 1
-        assert len(result["installed"]) == 0
+        assert len(result["all"]) == 1
 
     @patch('evaluator.search_registry', return_value=[])
     @patch('evaluator.rank_recommendations')
     def test_top_pick_is_first_item(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "top-tool", "score": 90, "installed": True, "reason": "best"},
+                {"name": "top-tool", "score": 90, "installed": False, "reason": "best"},
                 {"name": "second-tool", "score": 70, "installed": False,
                  "install_cmd": "npx skills add owner/repo@second-tool -y", "reason": "good"}
             ]
         }
-        result = build_recommendation_list("flutter", installed_plugins=[])
+        result = build_recommendation_list("flutter")
         assert result["top_pick"]["name"] == "top-tool"
         assert result["top_pick"]["score"] == 90
 
     @patch('evaluator.search_registry', return_value=[])
     @patch('evaluator.rank_recommendations')
     def test_top_pick_is_none_when_no_tools(self, mock_rank, _registry):
-        mock_rank.return_value = {"all": []}
-        result = build_recommendation_list("flutter", installed_plugins=[])
+        mock_rank.return_value = {"cc_score": 0, "all": []}
+        result = build_recommendation_list("flutter")
         assert result["top_pick"] is None
 
 
@@ -219,10 +239,11 @@ class TestScoreGapTruncation(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_cuts_after_25_point_cliff(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "a", "score": 90, "installed": True, "reason": "top"},
-                {"name": "b", "score": 85, "installed": True, "reason": "good"},
-                {"name": "c", "score": 72, "installed": True, "reason": "ok"},
+                {"name": "a", "score": 90, "installed": False, "reason": "top"},
+                {"name": "b", "score": 85, "installed": False, "reason": "good"},
+                {"name": "c", "score": 72, "installed": False, "reason": "ok"},
                 {"name": "d", "score": 44, "installed": False, "install_cmd": "npx skills add x/y@d -y", "reason": "weak"},
                 {"name": "e", "score": 42, "installed": False, "install_cmd": "npx skills add x/y@e -y", "reason": "weak"},
             ]
@@ -236,9 +257,10 @@ class TestScoreGapTruncation(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_no_cut_when_gap_under_25(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "a", "score": 90, "installed": True, "reason": "top"},
-                {"name": "b", "score": 68, "installed": True, "reason": "ok"},
+                {"name": "a", "score": 90, "installed": False, "reason": "top"},
+                {"name": "b", "score": 68, "installed": False, "reason": "ok"},
             ]
         }
         result = build_recommendation_list("flutter")
@@ -249,8 +271,9 @@ class TestScoreGapTruncation(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_cut_at_exact_25_point_gap(self, mock_rank, _registry):
         mock_rank.return_value = {
+            "cc_score": 0,
             "all": [
-                {"name": "a", "score": 80, "installed": True, "reason": "top"},
+                {"name": "a", "score": 80, "installed": False, "reason": "top"},
                 {"name": "b", "score": 55, "installed": False, "install_cmd": "npx skills add x/y@b -y", "reason": "ok"},
                 {"name": "c", "score": 50, "installed": False, "install_cmd": "npx skills add x/y@c -y", "reason": "low"},
             ]
@@ -281,8 +304,8 @@ class TestRankRecommendationsModel(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_build_passes_model_to_rank(self, mock_rank, _registry):
         """build_recommendation_list forwards model param to rank_recommendations."""
-        mock_rank.return_value = {"all": []}
-        build_recommendation_list("flutter", installed_plugins=[], model="claude-sonnet-4-6")
+        mock_rank.return_value = {"cc_score": 0, "all": []}
+        build_recommendation_list("flutter", model="claude-sonnet-4-6")
         _, kwargs = mock_rank.call_args
         assert kwargs.get("model") == "claude-sonnet-4-6"
 
@@ -290,8 +313,8 @@ class TestRankRecommendationsModel(unittest.TestCase):
     @patch('evaluator.rank_recommendations')
     def test_build_defaults_to_haiku(self, mock_rank, _registry):
         """build_recommendation_list defaults to Haiku when model not specified."""
-        mock_rank.return_value = {"all": []}
-        build_recommendation_list("flutter", installed_plugins=[])
+        mock_rank.return_value = {"cc_score": 0, "all": []}
+        build_recommendation_list("flutter")
         _, kwargs = mock_rank.call_args
         assert kwargs.get("model") == "claude-haiku-4-5-20251001"
 
