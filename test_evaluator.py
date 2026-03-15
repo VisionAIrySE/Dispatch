@@ -470,5 +470,58 @@ class TestSearchByCategory(unittest.TestCase):
         assert len(ids) == len(set(ids))
 
 
+class TestTwoTierRanking(unittest.TestCase):
+    """build_recommendation_list returns described/general split."""
+
+    def _make_tools(self):
+        return [
+            {"name": "owner/repo@with-desc", "score": 85, "installed": False,
+             "reason": "Has a real description.", "install_cmd": "npx skills add owner/repo@with-desc -y",
+             "description": "Provides Flutter widget testing patterns."},
+            {"name": "owner/repo@no-desc", "score": 80, "installed": False,
+             "reason": "", "install_cmd": "npx skills add owner/repo@no-desc -y",
+             "description": ""},
+        ]
+
+    def test_described_tools_in_described_list(self):
+        """Tools with non-empty description go into 'described' list."""
+        import evaluator
+        with patch.object(evaluator, "search_by_category", return_value=[]), \
+             patch.object(evaluator, "rank_recommendations", return_value={
+                 "cc_score": 60, "all": self._make_tools()}):
+            result = evaluator.build_recommendation_list("flutter-fixing", category_id="mobile-development")
+        described_names = [t["name"] for t in result["described"]]
+        assert "owner/repo@with-desc" in described_names
+
+    def test_undescribed_tools_in_general_list(self):
+        """Tools without description go into 'general' list."""
+        import evaluator
+        with patch.object(evaluator, "search_by_category", return_value=[]), \
+             patch.object(evaluator, "rank_recommendations", return_value={
+                 "cc_score": 60, "all": self._make_tools()}):
+            result = evaluator.build_recommendation_list("flutter-fixing", category_id="mobile-development")
+        general_names = [t["name"] for t in result["general"]]
+        assert "owner/repo@no-desc" in general_names
+
+    def test_top_pick_comes_from_described_first(self):
+        """top_pick is first item from described list, not general."""
+        import evaluator
+        with patch.object(evaluator, "search_by_category", return_value=[]), \
+             patch.object(evaluator, "rank_recommendations", return_value={
+                 "cc_score": 60, "all": self._make_tools()}):
+            result = evaluator.build_recommendation_list("flutter-fixing", category_id="mobile-development")
+        assert result["top_pick"]["name"] == "owner/repo@with-desc"
+
+    def test_all_list_still_populated_for_backward_compat(self):
+        """'all' key still present and contains union of both tiers."""
+        import evaluator
+        with patch.object(evaluator, "search_by_category", return_value=[]), \
+             patch.object(evaluator, "rank_recommendations", return_value={
+                 "cc_score": 60, "all": self._make_tools()}):
+            result = evaluator.build_recommendation_list("flutter-fixing", category_id="mobile-development")
+        assert "all" in result
+        assert len(result["all"]) == 2
+
+
 if __name__ == '__main__':
     unittest.main()

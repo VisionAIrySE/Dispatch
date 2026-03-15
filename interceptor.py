@@ -154,3 +154,50 @@ def get_unseen_alerts(tools: list, seen_file: str = None) -> list:
         ]
     except Exception:
         return []
+
+
+def write_last_suggested(tool_name: str, state_file: str = None) -> None:
+    """Store the tool name Dispatch just suggested so we can detect conversion later."""
+    path = state_file or STATE_FILE
+    try:
+        try:
+            with open(path) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+        state["last_suggested"] = tool_name
+        with open(path, "w") as f:
+            json.dump(state, f)
+    except Exception:
+        pass
+
+
+def get_last_suggested(state_file: str = None) -> str:
+    """Return the last suggested tool name, or '' if unset."""
+    path = state_file or STATE_FILE
+    try:
+        with open(path) as f:
+            return json.load(f).get("last_suggested", "")
+    except Exception:
+        return ""
+
+
+def clear_last_suggested(state_file: str = None) -> None:
+    """Remove last_suggested from state after conversion is recorded."""
+    path = state_file or STATE_FILE
+    try:
+        with open(path) as f:
+            state = json.load(f)
+        state.pop("last_suggested", None)
+        with open(path, "w") as f:
+            json.dump(state, f)
+    except Exception:
+        pass
+
+
+def check_conversion(installed_names: list, state_file: str = None) -> bool:
+    """Return True if the last suggested tool is now in installed_names."""
+    last = get_last_suggested(state_file=state_file)
+    if not last:
+        return False
+    return last in installed_names

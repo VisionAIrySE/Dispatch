@@ -300,10 +300,16 @@ def build_recommendation_list(
             repo_part = name.split("@")[0]
             item["install_url"] = f"https://github.com/{repo_part}"
 
-    top_pick = all_tools[0] if all_tools else None
+    # Two-tier split: described tools are best matches, undescribed are general keyword matches
+    described = [t for t in all_tools if t.get("description", "").strip()]
+    general = [t for t in all_tools if not t.get("description", "").strip()]
+
+    top_pick = described[0] if described else (general[0] if general else None)
 
     return {
         "all": all_tools,
+        "described": described,
+        "general": general,
         "top_pick": top_pick,
         "cc_score": cc_score,
     }

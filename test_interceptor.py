@@ -214,5 +214,59 @@ class TestSeenAlerts(unittest.TestCase):
         assert "owner/repo@low-score" not in names
 
 
+class TestLastSuggestedTracking(unittest.TestCase):
+    """Tests for write_last_suggested, get_last_suggested, clear_last_suggested, check_conversion."""
+
+    def setUp(self):
+        self.state_file = tempfile.mktemp(suffix=".json")
+
+    def tearDown(self):
+        try:
+            os.unlink(self.state_file)
+        except Exception:
+            pass
+
+    def test_write_and_get_last_suggested(self):
+        """write_last_suggested persists tool name, get_last_suggested retrieves it."""
+        from interceptor import write_last_suggested, get_last_suggested
+        write_last_suggested("flutter/skills@flutter-layout", state_file=self.state_file)
+        assert get_last_suggested(state_file=self.state_file) == "flutter/skills@flutter-layout"
+
+    def test_get_last_suggested_returns_empty_when_unset(self):
+        """get_last_suggested returns '' when nothing written."""
+        from interceptor import get_last_suggested
+        assert get_last_suggested(state_file=self.state_file) == ""
+
+    def test_clear_last_suggested(self):
+        """clear_last_suggested removes the stored value."""
+        from interceptor import write_last_suggested, get_last_suggested, clear_last_suggested
+        write_last_suggested("flutter/skills@flutter-layout", state_file=self.state_file)
+        clear_last_suggested(state_file=self.state_file)
+        assert get_last_suggested(state_file=self.state_file) == ""
+
+    def test_check_conversion_true_when_suggested_now_installed(self):
+        """check_conversion returns True if last_suggested tool is now in installed list."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("flutter/skills@flutter-layout", state_file=self.state_file)
+        result = check_conversion(
+            ["other/repo@skill", "flutter/skills@flutter-layout"],
+            state_file=self.state_file
+        )
+        assert result is True
+
+    def test_check_conversion_false_when_not_installed(self):
+        """check_conversion returns False if last_suggested is not in installed list."""
+        from interceptor import write_last_suggested, check_conversion
+        write_last_suggested("flutter/skills@flutter-layout", state_file=self.state_file)
+        result = check_conversion(["other/repo@different-skill"], state_file=self.state_file)
+        assert result is False
+
+    def test_check_conversion_false_when_nothing_suggested(self):
+        """check_conversion returns False when no last_suggested set."""
+        from interceptor import check_conversion
+        result = check_conversion(["flutter/skills@flutter-layout"], state_file=self.state_file)
+        assert result is False
+
+
 if __name__ == "__main__":
     unittest.main()
