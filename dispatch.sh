@@ -322,6 +322,16 @@ log_unknown_category(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || true
 fi
 
+# ── Read previous cwd before state write (for rescan check) ──────────────
+PREV_CWD=$(python3 -c "
+import json
+try:
+    d = json.load(open('$STATE_FILE'))
+    print(d.get('last_cwd', ''))
+except:
+    print('')
+" 2>/dev/null || echo "")
+
 # ── Stage 2: Store state for PreToolUse hook ───────────────────────────────
 # Extract last 3 user messages to build context snippet for preuse_hook.sh
 CONTEXT_SNIPPET=$(python3 -c "
@@ -365,5 +375,15 @@ d['last_updated'] = datetime.now().isoformat()
 with open(state_file, 'w') as f:
     json.dump(d, f)
 " "$STATE_FILE" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$CWD" 2>/dev/null || true
+
+# ── Trigger stack rescan if cwd changed ──────────────────────────────────
+if [ "$CWD" != "$PREV_CWD" ]; then
+    python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from stack_scanner import scan_and_save
+scan_and_save(sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$CWD" 2>/dev/null || true
+fi
 
 exit 0

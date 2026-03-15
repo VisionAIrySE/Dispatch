@@ -251,7 +251,8 @@ def build_recommendation_list(
     context_snippet: str = None,
     cc_tool: str = None,
     model: str = None,
-    category_id: str = None
+    category_id: str = None,
+    stack_profile: dict = None
 ) -> dict:
     """Search marketplace registry and rank against CC's chosen tool.
 
@@ -269,10 +270,17 @@ def build_recommendation_list(
         registry_results = search_registry(task_type)
     cc_desc = describe_cc_tool(cc_tool) if cc_tool else ""
 
+    # Build stack context hint for ranker prompt
+    stack_context = None
+    if stack_profile:
+        terms = stack_profile.get("languages", []) + stack_profile.get("frameworks", [])
+        if terms:
+            stack_context = "Developer's current stack: " + ", ".join(terms[:6])
+
     result = rank_recommendations(
         task_type=task_type,
         registry_results=registry_results,
-        context_snippet=context_snippet,
+        context_snippet=context_snippet if not stack_context else f"{context_snippet or ''}\n{stack_context}".strip(),
         cc_tool=cc_tool,
         cc_tool_description=cc_desc,
         model=model or "claude-haiku-4-5-20251001"
