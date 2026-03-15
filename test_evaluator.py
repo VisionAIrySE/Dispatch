@@ -75,8 +75,10 @@ class TestRankRecommendations(unittest.TestCase):
                      "install_cmd": "npx skills add owner/repo@skill -y",
                      "reason": "Better for this task"}]
         })
-        with patch("evaluator.anthropic.Anthropic") as MockClient:
-            MockClient.return_value.messages.create.return_value = self._mock_response(payload)
+        with patch("evaluator.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = payload
             result = rank_recommendations(
                 task_type="flutter-building",
                 registry_results=[{"id": "owner/repo@skill", "description": "Flutter skill"}],
@@ -97,9 +99,12 @@ class TestRankRecommendations(unittest.TestCase):
 
     def test_strips_markdown_wrapper(self):
         from evaluator import rank_recommendations
-        wrapped = '```json\n{"cc_score": 65, "all": []}\n```'
-        with patch("evaluator.anthropic.Anthropic") as MockClient:
-            MockClient.return_value.messages.create.return_value = self._mock_response(wrapped)
+        # llm_client.complete() strips fences before returning — so evaluator receives clean JSON
+        clean = '{"cc_score": 65, "all": []}'
+        with patch("evaluator.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = clean
             result = rank_recommendations("general", [], cc_tool="x")
         assert result["cc_score"] == 65
 

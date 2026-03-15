@@ -1,6 +1,7 @@
 import json
 import os
 import anthropic
+from llm_client import get_client, classify_model, load_config
 
 VALID_MODES = {
     "discovering", "designing", "building", "fixing",
@@ -72,11 +73,16 @@ def should_skip(message: str) -> bool:
 
 def classify_topic_shift(messages: list, cwd: str, last_task_type: str = None, api_key: str = None) -> dict:
     """
-    Call Haiku to classify whether a topic shift has occurred.
+    Call LLM to classify whether a topic shift has occurred.
     Returns: {"shift": bool, "domain": str, "mode": str, "task_type": str, "confidence": float}
     """
     try:
-        client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        config = load_config()
+        # api_key param kept for backward compatibility — overrides config if provided
+        if api_key:
+            config.setdefault("anthropic_api_key", api_key)
+        llm = get_client(config)
+        model = classify_model(config)
 
         user_content = f"""Current directory: {cwd}
 Last task type: {last_task_type or 'unknown'}
@@ -86,19 +92,10 @@ Recent messages:
 
 Has the developer shifted to a new task?"""
 
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=100,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_content}]
-        )
-
-        text = response.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        return json.loads(text.strip())
+        text = llm.complete(system=SYSTEM_PROMPT, user=user_content, model=model, max_tokens=100)
+        if not text:
+            raise ValueError("empty response")
+        return json.loads(text)
 
     except Exception:
         return {"shift": False, "domain": "general", "mode": "building", "task_type": "general-building", "confidence": 0.0}

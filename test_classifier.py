@@ -86,19 +86,17 @@ class TestShouldSkip(unittest.TestCase):
 
 
 class TestClassifyTopicShift(unittest.TestCase):
-    @patch('classifier.anthropic.Anthropic')
-    def test_returns_structured_result_on_shift(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "shift": True,
-                "domain": "flutter",
-                "mode": "building",
-                "task_type": "flutter-building",
-                "confidence": 0.92
-            }))]
-        )
+    @patch('classifier.get_client')
+    def test_returns_structured_result_on_shift(self, mock_get_client):
+        mock_llm = MagicMock()
+        mock_get_client.return_value = mock_llm
+        mock_llm.complete.return_value = json.dumps({
+            "shift": True,
+            "domain": "flutter",
+            "mode": "building",
+            "task_type": "flutter-building",
+            "confidence": 0.92
+        })
         result = classify_topic_shift(
             messages=["fix supabase query", "now build a Flutter widget"],
             cwd="/home/visionairy/SNAP-app",
@@ -145,20 +143,18 @@ class TestClassifyTopicShift(unittest.TestCase):
         assert result["confidence"] == 0.0
 
 
-    @patch('classifier.anthropic.Anthropic')
-    def test_intra_domain_mode_shift(self, mock_client_cls):
+    @patch('classifier.get_client')
+    def test_intra_domain_mode_shift(self, mock_get_client):
         """Shift within same domain when action mode changes (building → fixing)"""
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps({
-                "shift": True,
-                "domain": "flutter",
-                "mode": "fixing",
-                "task_type": "flutter-fixing",
-                "confidence": 0.88
-            }))]
-        )
+        mock_llm = MagicMock()
+        mock_get_client.return_value = mock_llm
+        mock_llm.complete.return_value = json.dumps({
+            "shift": True,
+            "domain": "flutter",
+            "mode": "fixing",
+            "task_type": "flutter-fixing",
+            "confidence": 0.88
+        })
         result = classify_topic_shift(
             messages=["this blows up with a null pointer"],
             cwd="/home/user/myapp",

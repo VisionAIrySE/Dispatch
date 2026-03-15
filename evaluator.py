@@ -4,6 +4,7 @@ import re
 import subprocess
 import time
 import anthropic
+from llm_client import get_client, ranker_model, load_config
 
 try:
     from category_mapper import load_categories as _load_categories
@@ -207,7 +208,10 @@ def rank_recommendations(
     Returns {"cc_score": int, "all": [{name, score, installed, reason, install_cmd?}]}
     """
     try:
-        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        config = load_config()
+        llm = get_client(config)
+        # model param kept as override — if provided, takes priority over config
+        effective_model = model if model else ranker_model(config)
 
         context_line = f"\nUser's current task: \"{context_snippet[:200]}\"" if context_snippet else ""
 
@@ -230,21 +234,10 @@ Marketplace alternatives (not installed):
 
 Score CC's tool and each marketplace alternative for this {task_type} task."""
 
-        response = client.messages.create(
-            model=model,
-            max_tokens=600,
-            system=RANK_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_content}]
-        )
-
-        if not response.content:
+        text = llm.complete(system=RANK_SYSTEM_PROMPT, user=user_content, model=effective_model, max_tokens=600)
+        if not text:
             return {"cc_score": 0, "all": []}
-        text = response.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        parsed = json.loads(text.strip())
+        parsed = json.loads(text)
         parsed.setdefault("cc_score", 0)
         parsed.setdefault("all", [])
         return parsed
