@@ -171,5 +171,48 @@ class TestStateHelpers(unittest.TestCase):
         assert result == "mobile"
 
 
+class TestSeenAlerts(unittest.TestCase):
+    def setUp(self):
+        self.seen_path = tempfile.mktemp(suffix=".json")
+
+    def tearDown(self):
+        if os.path.exists(self.seen_path):
+            os.unlink(self.seen_path)
+
+    def test_get_seen_alerts_empty_on_missing_file(self):
+        from interceptor import get_seen_alerts
+        result = get_seen_alerts(seen_file="/nonexistent/path/alerts.json")
+        assert result == set()
+
+    def test_mark_alert_seen_writes_file(self):
+        from interceptor import mark_alert_seen, get_seen_alerts
+        mark_alert_seen("owner/repo@skill-name", seen_file=self.seen_path)
+        result = get_seen_alerts(seen_file=self.seen_path)
+        assert "owner/repo@skill-name" in result
+
+    def test_get_unseen_alerts_filters_seen(self):
+        from interceptor import mark_alert_seen, get_unseen_alerts
+        mark_alert_seen("owner/repo@already-seen", seen_file=self.seen_path)
+        tools = [
+            {"name": "owner/repo@already-seen", "score": 90},
+            {"name": "owner/repo@not-seen-yet", "score": 85},
+        ]
+        result = get_unseen_alerts(tools, seen_file=self.seen_path)
+        names = [t["name"] for t in result]
+        assert "owner/repo@already-seen" not in names
+        assert "owner/repo@not-seen-yet" in names
+
+    def test_get_unseen_alerts_requires_score_80(self):
+        from interceptor import get_unseen_alerts
+        tools = [
+            {"name": "owner/repo@high-score", "score": 81},
+            {"name": "owner/repo@low-score", "score": 75},
+        ]
+        result = get_unseen_alerts(tools, seen_file=self.seen_path)
+        names = [t["name"] for t in result]
+        assert "owner/repo@high-score" in names
+        assert "owner/repo@low-score" not in names
+
+
 if __name__ == "__main__":
     unittest.main()

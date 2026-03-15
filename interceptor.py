@@ -3,7 +3,9 @@ import os
 import time
 
 STATE_FILE = os.path.expanduser("~/.claude/skill-router/state.json")
+SEEN_ALERTS_FILE = os.path.expanduser("~/.claude/skill-router/seen_alerts.json")
 BYPASS_TTL = 120  # seconds a bypass token stays valid
+ALERT_MIN_SCORE = 80
 
 # Tool names that are worth intercepting (exact match or prefix)
 _INTERCEPTABLE_NAMES = frozenset({"Skill", "Agent"})
@@ -105,3 +107,50 @@ def get_category() -> str:
         return d.get("last_category") or "unknown"
     except Exception:
         return "unknown"
+
+
+def get_seen_alerts(seen_file: str = None) -> set:
+    """Load seen_alerts.json. Returns set of tool name strings. Empty set on failure."""
+    path = seen_file or SEEN_ALERTS_FILE
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return set(data.get("seen", []))
+    except Exception:
+        return set()
+
+
+def mark_alert_seen(tool_name: str, seen_file: str = None):
+    """Add tool_name to seen_alerts.json. Silently fails on error."""
+    path = seen_file or SEEN_ALERTS_FILE
+    try:
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception:
+            data = {"seen": []}
+        seen = set(data.get("seen", []))
+        seen.add(tool_name)
+        data["seen"] = list(seen)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
+def get_unseen_alerts(tools: list, seen_file: str = None) -> list:
+    """Filter tools list to unseen entries with score >= ALERT_MIN_SCORE.
+
+    Each tool dict must have 'name' and 'score' keys.
+    Returns [] on any failure.
+    """
+    try:
+        seen = get_seen_alerts(seen_file)
+        return [
+            t for t in tools
+            if t.get("name") not in seen
+            and int(t.get("score", 0)) >= ALERT_MIN_SCORE
+        ]
+    except Exception:
+        return []
