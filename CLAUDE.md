@@ -172,6 +172,47 @@ CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role
 
 ---
 
+## Documentation Update Protocol
+
+**MANDATORY:** After any change that affects user-facing behavior, install steps, API contracts, or pricing — update ALL applicable docs before committing.
+
+### Doc map — what to update for each change type
+
+| Change type | Update these docs |
+|-------------|------------------|
+| New feature / behavior change | README (What it does, Using it), user-guide.md, SKILL.md (if skill changes) |
+| Install process change | README (Install section), user-guide.md (Getting started), install.sh comments |
+| Pricing / plan change | README (Three ways to run it, comparison table), user-guide.md (Plans at a glance), app.py (Pro page, dashboard upsell text) |
+| New API endpoint or response field | admin-guide.md (if admin-facing), CLAUDE.md (Architecture, Key Files) |
+| Dashboard change | admin-guide.md, user-guide.md (Your account section) |
+| Hook behavior change | README (What it actually does, How the scoring works), user-guide.md (What happens during a session, When Dispatch intercepts), CLAUDE.md (Architecture) |
+| New env var (server) | admin-guide.md (Required Environment Variables table) |
+| Troubleshooting edge case discovered | README (Troubleshooting), user-guide.md (Troubleshooting) |
+| Roadmap item completed | README (Roadmap checkboxes), CLAUDE.md (Roadmap checkboxes) |
+| Privacy / data change | README (Privacy table), user-guide.md (Privacy section) |
+
+### Docs inventory
+
+| File | Audience | Location |
+|------|----------|----------|
+| `README.md` | Public — GitHub landing page | repo root |
+| `docs/user-guide.md` | Users — getting started + troubleshooting | Dispatch repo |
+| `docs/admin-guide.md` | Russ only — operator reference | Dispatch repo |
+| `SKILL.md` | skills.sh + CC marketplace discovery | repo root |
+| `.claude-plugin/plugin.json` | CC marketplace manifest | repo root |
+| `CLAUDE.md` (this file) | Claude Code sessions — architecture + patterns | repo root |
+
+### Checklist (run before every commit that touches behavior)
+
+- [ ] Does this change affect what users see or do? → Update README + user-guide.md
+- [ ] Does this change the install process? → Update README + user-guide.md getting started
+- [ ] Does this change admin surfaces or env vars? → Update admin-guide.md
+- [ ] Does this change hook behavior? → Update README + user-guide.md + CLAUDE.md architecture
+- [ ] Does this complete a roadmap item? → Check off in README and CLAUDE.md
+- [ ] Does this change pricing? → Update README table + user-guide.md table + app.py upsell copy
+
+---
+
 ## Roadmap
 
 - [x] Hosted endpoint — live at dispatch.visionairy.biz, $10/month Pro
@@ -184,8 +225,16 @@ CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role
 - [x] Sonnet for Pro tier ranking (v0.5.0)
 - [x] PreToolUse interception — blocks on 10+ point gap (v0.7.0)
 - [x] Category-first model — MECE 16-category catalog (v0.7.0)
-- [ ] Daily catalog cron — crawl all sources, build enriched tool_catalog.json (v0.8.0)
-- [ ] Weekly category scoring cron — zero live API calls at hook time (v0.8.0)
+- [x] Daily catalog cron — signal-scored, creator outreach (v0.8.0 / v0.9.0)
+- [x] Install conversion tracking — was_installed events (v0.9.1)
+- [x] Creator outreach — GitHub issues for undescribed skills (v0.9.1)
+- [x] Slack notifications — signup, upgrade, conversion, cron (v0.9.1)
+- [x] Admin dashboard — CC Weakness Map, MRR, user table (v0.9.1)
+- [x] User dashboard — Pro-gated stats, install badges, upsell (v0.9.1)
+- [x] `/dispatch status` command (v0.9.1)
+- [ ] Weekly category scoring cron — zero live API calls at hook time
 - [ ] End-to-end live session testing + screen recording for promotion
-- [ ] `/dispatch status` command
-- [ ] skills.sh distribution
+- [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
+- [ ] CC marketplace submission (platform.claude.com/plugins/submit)
+- [ ] Weekly new-tool digest email for Pro users
+- [ ] Aggregate insights API (category trends, CC gap analysis)

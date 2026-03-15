@@ -300,7 +300,8 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 - [x] Install conversion tracking — detects when users install suggested tools
 - [x] Creator outreach — GitHub issues for undescribed skills (max 1/repo/month)
 - [x] Slack notifications — signup, upgrade, conversion, daily digest, cron completion
-- [ ] `/dispatch status` command
+- [x] `/dispatch status` command
 - [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
+- [ ] CC marketplace submission
 - [ ] Weekly new-tool digest email for Pro users
 - [ ] Aggregate insights API (category trends, CC gap analysis)
