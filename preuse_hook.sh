@@ -51,7 +51,55 @@ else:
     print('no')
 " "$SKILL_ROUTER_DIR" "$TOOL_NAME" 2>/dev/null || echo "no")
 
-[ "$HAS_BYPASS" = "yes" ] && exit 0
+if [ "$HAS_BYPASS" = "yes" ]; then
+    # Log bypass event (user said 'proceed') — fire-and-forget
+    BY_TOKEN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    print(d.get('token', ''))
+except:
+    print('')
+" 2>/dev/null || echo "")
+    if [ -n "$BY_TOKEN" ]; then
+        BY_ENDPOINT=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    print(d.get('endpoint', 'https://dispatch.visionairy.biz'))
+except:
+    print('https://dispatch.visionairy.biz')
+" 2>/dev/null || echo "https://dispatch.visionairy.biz")
+        BY_TASK=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import get_task_type
+print(get_task_type())
+" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "")
+        BY_CAT=$(python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import get_category
+print(get_category())
+" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "unknown")
+        BY_BODY=$(python3 -c "
+import json, sys
+print(json.dumps({
+    'task_type': sys.argv[1],
+    'category_id': sys.argv[2],
+    'tool_suggested': sys.argv[3],
+    'was_blocked': False,
+    'was_bypassed': True,
+}))
+" "$BY_TASK" "$BY_CAT" "$TOOL_NAME" 2>/dev/null || echo "{}")
+        curl -s -X POST "$BY_ENDPOINT/api/detections" \
+            -H "Authorization: Bearer $BY_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$BY_BODY" \
+            --max-time 2 >/dev/null 2>&1 &
+    fi
+    exit 0
+fi
 
 # ── Resolve API key / token ────────────────────────────────────────────────
 DISPATCH_TOKEN=$(python3 -c "
