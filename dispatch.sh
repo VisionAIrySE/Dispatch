@@ -181,6 +181,11 @@ print(json.dumps({'transcript': transcript, 'cwd': cwd, 'last_task_type': last_t
     HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
     HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n 1)
 
+    # Validate HTTP_CODE is a 3-digit number; treat anything else as a curl failure
+    if ! echo "$HTTP_CODE" | grep -qE '^[0-9]{3}$'; then
+        HTTP_CODE="000"
+    fi
+
     # Handle limit reached (402)
     if [ "$HTTP_CODE" = "402" ]; then
         # Suppress notice for 5 triggers after first display
@@ -301,7 +306,12 @@ except Exception:
         exit 0
     fi
 
-    CLASSIFICATION="$HTTP_BODY"
+    # Any other non-200 (403, 500, HTML error pages, etc.) — fall through to BYOK
+    if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
+        CLASSIFICATION=""
+    else
+        CLASSIFICATION="$HTTP_BODY"
+    fi
 else
     # ── BYOK mode ─────────────────────────────────────────────────────────
     CLASSIFICATION=$(python3 "$SKILL_ROUTER_DIR/classifier.py" \
@@ -311,6 +321,19 @@ else
         --prompt "$CURRENT_PROMPT" \
         2>/dev/null || echo '{"shift":false,"domain":"general","mode":"building","task_type":"general-building","confidence":0}')
 fi
+
+# Hosted returned non-200 — fall back to BYOK if API key is available
+if [ -z "$CLASSIFICATION" ] && [ -n "$ANTHROPIC_API_KEY" ]; then
+    CLASSIFICATION=$(python3 "$SKILL_ROUTER_DIR/classifier.py" \
+        --transcript "$TRANSCRIPT_PATH" \
+        --cwd "$CWD" \
+        --last-task-type "$LAST_TASK_TYPE" \
+        --prompt "$CURRENT_PROMPT" \
+        2>/dev/null || echo '{"shift":false,"domain":"general","mode":"building","task_type":"general-building","confidence":0}')
+fi
+
+# If still empty (no API key, no valid hosted response) — exit silently
+[ -z "$CLASSIFICATION" ] && exit 0
 
 SHIFT=$(python3 -c "
 import json, sys

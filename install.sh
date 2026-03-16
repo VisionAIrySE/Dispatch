@@ -51,12 +51,16 @@ import json
 try:
     with open("$SETTINGS") as f:
         s = json.load(f)
+    old_basenames = {"skill-router.sh", "preuse-hook.sh"}
     for event in ["UserPromptSubmit", "PreToolUse"]:
         if event in s.get("hooks", {}):
-            s["hooks"][event] = [
-                e for e in s["hooks"][event]
-                if not any(x in h.get("command","") for h in e.get("hooks",[]) for x in ["skill-router.sh","preuse-hook.sh"])
-            ]
+            for entry in s["hooks"][event]:
+                entry["hooks"] = [
+                    h for h in entry.get("hooks", [])
+                    if not any(x in h.get("command", "") for x in old_basenames)
+                ]
+            # Remove entries that are now empty (had only old hook commands)
+            s["hooks"][event] = [e for e in s["hooks"][event] if e.get("hooks")]
     with open("$SETTINGS", "w") as f:
         json.dump(s, f, indent=2)
 except Exception:
@@ -98,7 +102,7 @@ if [ ! -f "$SETTINGS" ]; then
 fi
 
 python3 - <<PYEOF
-import json, sys
+import json, sys, os
 
 settings_path = "$SETTINGS"
 hook_cmd = "bash $HOOKS_DIR/dispatch.sh"
@@ -111,9 +115,10 @@ except (json.JSONDecodeError, IOError):
 
 hooks = settings.setdefault("hooks", {})
 
+hook_basename = os.path.basename(hook_cmd.split()[-1])  # e.g. "dispatch.sh"
 for entry in hooks.get("UserPromptSubmit", []):
     for h in entry.get("hooks", []):
-        if h.get("command") == hook_cmd:
+        if hook_basename in h.get("command", ""):
             print("Dispatch already registered — skipping.")
             sys.exit(0)
 
@@ -132,7 +137,7 @@ print("Registered UserPromptSubmit hook in settings.json")
 PYEOF
 
 python3 - <<PYEOF
-import json, sys
+import json, sys, os
 
 settings_path = "$SETTINGS"
 hook_cmd = "bash $HOOKS_DIR/dispatch-preuse.sh"
@@ -145,9 +150,10 @@ except (json.JSONDecodeError, IOError):
 
 hooks = settings.setdefault("hooks", {})
 
+hook_basename = os.path.basename(hook_cmd.split()[-1])  # e.g. "dispatch-preuse.sh"
 for entry in hooks.get("PreToolUse", []):
     for h in entry.get("hooks", []):
-        if h.get("command") == hook_cmd:
+        if hook_basename in h.get("command", ""):
             print("PreToolUse hook already registered — skipping.")
             sys.exit(0)
 
