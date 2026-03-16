@@ -1,7 +1,7 @@
 # Dispatch Admin Guide
 
 **For:** Russ Wright (Visionairy)
-**Updated:** 2026-03-15
+**Updated:** 2026-03-16
 
 ---
 
@@ -23,8 +23,8 @@
 
 ### Overview Cards
 - **Total Users** — all registered accounts
-- **Pro Users** — paying subscribers; `Pro Users × $10 = MRR`
-- **MRR** — monthly recurring revenue at $10/user
+- **Pro Users** — paying subscribers; Founding users = $6/mo, standard = $10/mo
+- **MRR** — monthly recurring revenue (mix of $6 founding + $10 standard)
 - **New (7d)** — signups in the last 7 days
 
 - **Total Detections** — all-time hook intercepts logged
@@ -100,39 +100,59 @@ All billing is managed through Stripe. Users access the Stripe Customer Portal a
 **Job:** `python3 -u catalog_cron.py`
 **Schedule:** Daily (set in Render → Cron Jobs)
 **What it does:**
-1. Crawls skills.sh marketplace for all 16 MECE categories
-2. Scores each tool by installs (60%) + stars (25%) + forks (15%), log scale
-3. Applies staleness penalty (tools >18 months old capped at score 60)
-4. Upserts results into `tool_catalog` table
-5. Sends creator outreach GitHub Issues for tools with installs but no description (max 1/repo/30 days)
+1. Crawls **4 sources** across 3 tool types:
+   - **Skills:** skills.sh marketplace — all 16 MECE categories, filter MIN_INSTALLS ≥ 20
+   - **MCP (glama.ai):** searched by `mcp_search_terms` per category; safety filter (skip if no description AND no repo)
+   - **MCP (Smithery.ai):** `registry.smithery.ai/servers` — `useCount ≥ 20` filter built-in at collection time
+   - **MCP (Official registry):** `registry.modelcontextprotocol.io/v0/servers` — curated list, cursor-paginated
+2. Deduplicates across all sources by tool name
+3. Scores each tool (0–100 scale, log-normalized):
+   - Skills: installs (60%) + stars (25%) + forks (15%)
+   - MCPs with GitHub repo: stars/forks fetched via GitHub API, floor 20 (with desc) or 15 (without)
+   - MCPs without GitHub repo: flat 35 (with desc) or 20 (without)
+   - Staleness penalty: tools >18 months old capped at score 60
+4. Upserts results into `tool_catalog` table (ON CONFLICT DO UPDATE — safe to run repeatedly)
+5. Sends creator outreach GitHub Issues for skills with installs but no description (max 1/repo/30 days)
 6. Fires Slack notification to `#dispatch-log` on completion
 
 **Required env vars:** `DATABASE_URL`, `GITHUB_TOKEN`
-**Optional:** `SLACK_LOG_WEBHOOK_URL`
+**Optional:** `SLACK_LOG_WEBHOOK_URL`, `ANTHROPIC_API_KEY` (Tier 3 fallback), `OPENROUTER_API_KEY`
 
 **Logs to check:** Render → Cron Jobs → select job → Logs. Look for:
 ```
-[catalog_cron] Done. 247 tools upserted, 3 outreach sent in 87.3s
+[catalog_cron] Done. 312 tools upserted (247 skills, 65 MCPs), 3 outreach sent in 112.4s
 ```
+
+### Manual Trigger
+```bash
+curl -s -X POST https://dispatch.visionairy.biz/admin/run-cron \
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"
+```
+
+Returns immediately: `{"status": "started", "message": "Catalog cron running in background..."}`.
+Watch Render logs for progress and the completion summary.
 
 ### Known Cron Issues
 - If `GITHUB_TOKEN` is missing, stars/forks will be 0 and scores will be lower quality
 - GitHub token must have: Contents: Read, Issues: Read/Write (for creator outreach)
 - `upsert_tools` uses `ON CONFLICT (name) DO UPDATE` — safe to run multiple times, no duplicates
+- Smithery and official registry have no install data — scored via GitHub stats (stars/forks) or flat score
+- pulsemcp.com has a gated API (requires key from hello@pulsemcp.com) — not yet integrated
 
 ---
 
 ## Slack Notifications
 
-**Status: NOT YET CONFIGURED** — code is written, waiting for webhook setup.
+**Status: CONFIGURED ✅** — both webhooks active in Render.
 
-Once you create the Slack app and webhooks, add to Render env vars:
-- `SLACK_LOG_WEBHOOK_URL` → `#dispatch-log` (product ops events)
-- `SLACK_QUEUE_WEBHOOK_URL` → `#dispatch-queue` (n8n/OpenClaw marketing approval)
+| Channel | Webhook env var | Events |
+|---------|----------------|--------|
+| `#dispatch-log` | `SLACK_LOG_WEBHOOK_URL` | Signups, upgrades, downgrades, install conversions, daily cron summary |
+| `#dispatch-queue` | `SLACK_QUEUE_WEBHOOK_URL` | n8n/OpenClaw marketing approval queue |
 
 Events that fire to `#dispatch-log`:
 - New user signup
-- User upgraded to Pro
+- User upgraded to Pro (Founding or standard)
 - User downgraded / subscription cancelled
 - Install conversion (user installed a Dispatch-suggested tool)
 - Daily cron completion summary
@@ -167,11 +187,14 @@ gunicorn app:app --worker-class gthread --workers 2 --threads 4 --timeout 30
 | `STRIPE_SECRET_KEY` | Stripe live/test key |
 | `STRIPE_PRICE_ID` | Pro plan price ID |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `ADMIN_KEY` | Protects `/admin/dashboard` and `/admin/set-plan` |
-| `GITHUB_TOKEN` | Fine-grained PAT for cron (Contents: Read + Issues: Read/Write) |
-| `ANTHROPIC_API_KEY` | Used by classifier for BYOK fallback ranking |
-| `SLACK_LOG_WEBHOOK_URL` | Slack webhook for `#dispatch-log` (optional) |
-| `SLACK_QUEUE_WEBHOOK_URL` | Slack webhook for `#dispatch-queue` (optional) |
+| `ADMIN_KEY` | Protects `/admin/dashboard`, `/admin/set-plan`, `/admin/run-cron` |
+| `GITHUB_REGISTRY_TOKEN` | Fine-grained PAT for API server (catalog enrichment, OAuth) |
+| `GITHUB_TOKEN` | Fine-grained PAT for cron job (Contents: Read + Issues: Read/Write) |
+| `ANTHROPIC_API_KEY` | Tier 3 LLM fallback (after OpenRouter) |
+| `OPENROUTER_API_KEY` | Tier 1 LLM (free llama-3.1-8b-instruct — $0 cost for free tier) |
+| `STRIPE_FOUNDING_PRICE_ID` | Founding Dispatcher plan ($6/mo, first 300 users) |
+| `SLACK_LOG_WEBHOOK_URL` | Slack webhook for `#dispatch-log` ✅ configured |
+| `SLACK_QUEUE_WEBHOOK_URL` | Slack webhook for `#dispatch-queue` ✅ configured |
 
 ---
 
@@ -205,6 +228,7 @@ Both have GitHub Actions CI (`.github/workflows/tests.yml`) that runs on push/PR
 
 **Cron job not running**
 → Render → Cron Jobs → verify schedule. Check logs for errors. Confirm `DATABASE_URL` and `GITHUB_TOKEN` are set.
+→ To trigger manually: `curl -s -X POST https://dispatch.visionairy.biz/admin/run-cron -H "X-Admin-Key: YOUR_ADMIN_KEY"`
 
 **User says they're not being intercepted**
 → Ask them to run `/dispatch status` in a CC session. Checks if hooks are installed and shows last task detected.

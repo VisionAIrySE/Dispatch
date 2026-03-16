@@ -19,7 +19,7 @@ hooks:
       timeout_ms: 10000
 metadata:
   author: VisionAIrySE
-  version: "0.8.0"
+  version: "0.9.0"
   repository: https://github.com/VisionAIrySE/Dispatch
   homepage: https://dispatch.visionairy.biz
   install: bash <(curl -fsSL https://raw.githubusercontent.com/VisionAIrySE/Dispatch/main/install.sh)
@@ -53,15 +53,17 @@ results 0–100, and scores Claude's chosen tool on the same scale. If the top
 alternative scores ≥10 points higher, blocks (exit 2) and surfaces the ranked
 comparison. The user can type "proceed" to bypass (one-time, no restart needed).
 
-**Category-first routing**: 16 MECE categories (e.g. `mobile-development`,
-`frontend-web`, `devops-infra`, `data-science`). Haiku generates open-ended task
-type labels; the category model translates them into targeted search queries.
-Unknown task types are logged to `unknown_categories.jsonl`.
+**Category-first routing**: 16 MECE categories (e.g. `mobile`, `frontend`,
+`devops-cicd`, `ai-ml`). Haiku generates open-ended task type labels; the
+category model translates them into targeted search queries. Unknown task types
+are logged to `unknown_categories.jsonl`.
 
-**MCP server awareness**: Dispatch searches glama.ai for MCP servers alongside
-skills.sh for skills and the Claude plugin registries. Already-installed MCP
-servers (detected from `.mcp.json`) are excluded from recommendations — Dispatch
-only surfaces tools you don't already have.
+**MCP server awareness**: Dispatch searches three MCP registries alongside skills.sh:
+- **glama.ai** — community MCP index, searched by category-specific MCP terms
+- **Smithery.ai** — `registry.smithery.ai`, usage counts (useCount ≥ 20 filter)
+- **Official MCP registry** — `registry.modelcontextprotocol.io`, curated list
+Already-installed MCP servers (detected from `.mcp.json`) are excluded from
+recommendations — Dispatch only surfaces tools you don't already have.
 
 **Stack detection**: On each confirmed shift, Dispatch scans the project's manifest
 files (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pubspec.yaml`,

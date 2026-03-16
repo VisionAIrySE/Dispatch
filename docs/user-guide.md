@@ -127,19 +127,22 @@ Shows:
 - Install conversions (tools you installed after a suggestion)
 
 **Upgrade to Pro:** `https://dispatch.visionairy.biz/pro?token=YOUR_TOKEN`
-- $10/month — unlimited interceptions, Sonnet ranking, pre-ranked catalog, full dashboard
+- **$6/month** for the first 300 users (Founding Dispatcher — locked for life) — unlimited interceptions, Sonnet ranking, pre-ranked catalog, full dashboard
+- $10/month standard after founding tier fills
 
 ---
 
 ## Plans at a glance
 
-| | Free | Pro |
-|---|---|---|
-| Interceptions/day | 8 | Unlimited |
-| Ranking model | Haiku | Sonnet |
-| Catalog | Live search (~2–4s) | Pre-ranked (<200ms) |
-| Dashboard | Upgrade teaser | Full history + stats |
-| Cost | Free | $10/month |
+| | Free | Founding Pro | Pro |
+|---|---|---|---|
+| Interceptions/day | 8 | Unlimited | Unlimited |
+| Ranking model | Haiku | Sonnet | Sonnet |
+| Catalog | Live search (~2–4s) | Pre-ranked (<200ms) | Pre-ranked (<200ms) |
+| Dashboard | Upgrade teaser | Full history + stats | Full history + stats |
+| Cost | Free | $6/month (first 300) | $10/month |
+
+**Founding Dispatcher:** First 300 paying users lock in $6/month for life. Once the founding tier fills, new signups pay standard $10/month.
 
 ---
 
