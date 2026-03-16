@@ -14,6 +14,25 @@ except ImportError:
 CACHE_FILE = os.path.expanduser("~/.claude/dispatch/npx_cache.json")
 CACHE_TTL = 3600  # 1 hour
 
+GLAMA_API = "https://glama.ai/api/mcp/v1/servers"
+OFFICIAL_PLUGINS_URL = "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/.claude-plugin/marketplace.json"
+OFFICIAL_PLUGINS_CACHE_KEY = "_official_plugins"
+
+# Maps official plugin category labels → our MECE category IDs
+PLUGIN_CAT_MAP = {
+    "database": "database",
+    "deployment": "devops-cicd",
+    "design": "frontend",
+    "development": "backend-frameworks",
+    "learning": "documentation",
+    "location": "api-integrations",
+    "migration": "database",
+    "monitoring": "monitoring",
+    "productivity": "backend-frameworks",
+    "security": "auth-identity",
+    "testing": "testing",
+}
+
 
 def _load_cache() -> dict:
     try:
@@ -131,6 +150,73 @@ def _search_one_term(term: str, limit: int = 5) -> list:
         return entry.get("data", [])
 
 
+def _search_glama(term: str, limit: int = 10) -> list:
+    """Search glama.ai for MCP servers matching term. Returns list of {"id", "description"}."""
+    try:
+        results = []
+        cursor = None
+        while len(results) < limit:
+            params = {"first": min(20, limit - len(results)), "query": term}
+            if cursor:
+                params["after"] = cursor
+            resp = requests.get(GLAMA_API, params=params, timeout=6)
+            if resp.status_code != 200:
+                break
+            data = resp.json()
+            servers = data.get("servers", [])
+            if not servers:
+                break
+            for s in servers:
+                slug = s.get("slug") or s.get("id") or s.get("name", "")
+                if slug:
+                    results.append({
+                        "id": slug,
+                        "description": (s.get("description") or "")[:200],
+                    })
+            page_info = data.get("pageInfo", {})
+            if not page_info.get("hasNextPage"):
+                break
+            cursor = page_info.get("endCursor")
+        return results[:limit]
+    except Exception:
+        return []
+
+
+def _search_official_plugins(category_id: str) -> list:
+    """Fetch official CC plugins from GitHub, filter by category_id. Cached 1hr.
+
+    Returns list of {"id", "description"} for plugins matching the given category.
+    """
+    cache = _load_cache()
+    plugins_entry = cache.get(OFFICIAL_PLUGINS_CACHE_KEY, {})
+    if plugins_entry and (time.time() - plugins_entry.get("fetched_at", 0)) < CACHE_TTL:
+        plugins = plugins_entry.get("data", [])
+    else:
+        try:
+            resp = requests.get(OFFICIAL_PLUGINS_URL, timeout=8)
+            if resp.status_code == 200:
+                raw = resp.json()
+                plugins = raw if isinstance(raw, list) else raw.get("plugins", [])
+                cache[OFFICIAL_PLUGINS_CACHE_KEY] = {"data": plugins, "fetched_at": time.time()}
+                _save_cache(cache)
+            else:
+                plugins = plugins_entry.get("data", [])
+        except Exception:
+            plugins = plugins_entry.get("data", [])
+
+    results = []
+    for p in plugins:
+        p_cat = PLUGIN_CAT_MAP.get((p.get("category") or "").lower(), "")
+        if p_cat == category_id:
+            name = p.get("name") or p.get("id") or ""
+            if name:
+                results.append({
+                    "id": name,
+                    "description": (p.get("description") or "")[:200],
+                })
+    return results
+
+
 def search_registry(task_type: str, limit: int = 5) -> list:
     """Search skills.sh for all terms in compound task type. Returns list of {"id", "description"}.
 
@@ -157,11 +243,11 @@ def search_registry(task_type: str, limit: int = 5) -> list:
 
 
 def search_by_category(category_id: str, limit: int = 10) -> list:
-    """Search registry using all search_terms for a known category.
+    """Search skills.sh + glama.ai + official plugins for a known category.
 
-    More targeted than search_registry() — uses the full category term list
-    rather than splitting the task_type string.
-    Returns combined, deduplicated list of {"id", "description"}.
+    Uses the full category term list for skills.sh and glama, plus official plugin
+    category mapping for the plugin marketplace. Results are merged and deduplicated.
+    Returns combined list of {"id", "description"}.
     """
     if _load_categories is None:
         return []
@@ -176,8 +262,10 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
 
     seen_ids: set = set()
     results = []
+
+    # 1. skills.sh — primary term search
     try:
-        for term in cat.get("search_terms", [])[:5]:  # cap at 5 terms per category
+        for term in cat.get("search_terms", [])[:5]:
             for skill in _search_one_term(term, limit=5):
                 if skill["id"] not in seen_ids:
                     seen_ids.add(skill["id"])
@@ -186,6 +274,28 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
                 break
     except Exception:
         pass
+
+    # 2. Official CC plugins — pre-mapped by category
+    try:
+        for plugin in _search_official_plugins(category_id):
+            if plugin["id"] not in seen_ids:
+                seen_ids.add(plugin["id"])
+                results.append(plugin)
+    except Exception:
+        pass
+
+    # 3. glama.ai MCPs — search primary term only (rate limit aware)
+    if len(results) < limit:
+        try:
+            primary_term = cat.get("search_terms", [""])[0]
+            if primary_term:
+                for mcp in _search_glama(primary_term, limit=5):
+                    if mcp["id"] not in seen_ids:
+                        seen_ids.add(mcp["id"])
+                        results.append(mcp)
+        except Exception:
+            pass
+
     return results[:limit]
 
 
