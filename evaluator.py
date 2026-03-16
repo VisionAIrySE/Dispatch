@@ -396,6 +396,18 @@ def build_recommendation_list(
         # Agent calls → general skills and agent-type tools are most relevant; keep ordering as-is
         pass
 
+    # Filter out MCPs the user already has installed (stack_scanner detected them)
+    installed_mcps = set()
+    if stack_profile:
+        for srv in stack_profile.get("mcp_servers", []):
+            installed_mcps.add(srv.lower())
+    if installed_mcps:
+        from interceptor import normalize_tool_name_for_matching
+        registry_results = [
+            r for r in registry_results
+            if normalize_tool_name_for_matching(r.get("id", "")) not in installed_mcps
+        ]
+
     cc_desc = describe_cc_tool(cc_tool) if cc_tool else ""
 
     # Build stack context hint for ranker prompt
@@ -424,6 +436,14 @@ def build_recommendation_list(
 
     all_tools = result.get("all", [])
     cc_score = result.get("cc_score", 0)
+
+    # Filter out any installed MCPs the ranker may have included despite pre-filter
+    if installed_mcps:
+        from interceptor import normalize_tool_name_for_matching
+        all_tools = [
+            t for t in all_tools
+            if normalize_tool_name_for_matching(t.get("name", "")) not in installed_mcps
+        ]
 
     # Score gap truncation: cut at first gap >= 25 points
     if len(all_tools) > 1:

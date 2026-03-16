@@ -32,11 +32,13 @@ Two-hook pipeline:
 - 402 / 401 cooldown handling preserved
 
 **Key modules:**
-- `classifier.py` — Haiku shift detection
-- `evaluator.py` — `search_by_category()`, `rank_recommendations()`, `build_recommendation_list()`
-- `interceptor.py` — tool intercept logic, bypass token, state readers
+- `classifier.py` — Haiku shift detection; emits `preferred_tool_type` hint
+- `evaluator.py` — `search_by_category()`, `rank_recommendations()`, `build_recommendation_list()`; filters installed MCPs via `stack_profile.mcp_servers`
+- `interceptor.py` — tool intercept logic, bypass token, state readers; `normalize_tool_name_for_matching()`, `get_cc_tool_type()`, `write_last_cc_tool_type()`, `get_last_cc_tool_type()`
 - `category_mapper.py` — `map_to_category()`, `log_unknown_category()`
-- `categories.json` — MECE 16-category catalog
+- `categories.json` — MECE 16-category catalog with `search_terms` AND `mcp_search_terms`
+- `stack_scanner.py` — detects languages/frameworks/tools/MCP servers from project files and `.mcp.json`
+- `llm_client.py` — LLM-agnostic adapter (OpenRouter-first, Anthropic fallback, noop)
 
 ---
 
@@ -52,10 +54,14 @@ Two-hook pipeline:
 | `dispatch.sh` | UserPromptSubmit hook — shift detection + state write |
 | `preuse_hook.sh` | PreToolUse blocking hook — intercepts and scores |
 | `install.sh` | Copies files, registers both hooks in settings.json |
-| `test_classifier.py` | 19 unit tests for classifier |
-| `test_evaluator.py` | 39 unit tests for evaluator |
-| `test_interceptor.py` | 22 unit tests for interceptor |
+| `stack_scanner.py` | Detects languages, frameworks, tools, and MCP servers from project files |
+| `llm_client.py` | LLM-agnostic adapter (OpenRouter, Anthropic, noop) |
+| `test_classifier.py` | 23 unit tests for classifier |
+| `test_evaluator.py` | 56 unit tests for evaluator |
+| `test_interceptor.py` | 62 unit tests for interceptor |
 | `test_category_mapper.py` | 13 unit tests for category_mapper |
+| `test_llm_client.py` | 12 unit tests for llm_client |
+| `test_stack_scanner.py` | 20 unit tests for stack_scanner |
 
 **Installed location:** `~/.claude/dispatch/` (classifier.py, evaluator.py, interceptor.py, category_mapper.py, categories.json)
 **Hook 1:** `~/.claude/hooks/dispatch.sh` (UserPromptSubmit)
@@ -93,16 +99,33 @@ return json.loads(text.strip())
 
 **Bypass token TTL is 120s** — Written by preuse_hook.sh before exit 2, consumed on the very next Skill/Agent/mcp__ call. Clears itself after use.
 
+**Installed path is `~/.claude/dispatch/`** — Python modules, state.json, config.json, unknown_categories.jsonl all live here. Old `~/.claude/skill-router/` is deleted.
+
+**`mcp_search_terms` used for glama vocabulary** — Glama.ai MCP searches use service names (postgres, github) not task names (database-management). `categories.json` has both `search_terms` (for skills.sh) and `mcp_search_terms` (for glama).
+
+**`plugin:anthropic:` prefix required for type detection** — Official plugins prefixed `plugin:anthropic:name`; community plugins `plugin:cc-marketplace:name`; MCPs `mcp:slug`. Bare names are skills.
+
+**`state.json` fields:**
+- `last_task_type` — Haiku-generated task label (e.g., "flutter-building")
+- `last_category` — MECE category_id (e.g., "mobile-development")
+- `last_context_snippet` — last 3 user messages joined for preuse ranker
+- `last_cwd` — project dir at time of last shift
+- `last_suggested` — tool name Dispatch last recommended (for conversion tracking)
+- `last_cc_tool_type` — "mcp" | "skill" | "agent" from most recent PreToolUse intercept
+- `bypass` — `{tool_name, expires}` one-time bypass token (TTL 120s)
+- `first_run` — bool, cleared after first-session welcome message
+- `limit_cooldown` / `auth_invalid_cooldown` — suppression counters for 402/401 notices
+
 ---
 
 ## Testing
 
 ```bash
 cd /home/visionairy/Dispatch
-python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py -v
+python3 -m pytest test_classifier.py test_evaluator.py test_interceptor.py test_category_mapper.py test_llm_client.py test_stack_scanner.py -v
 ```
 
-All 93 tests must pass before pushing (19 classifier + 39 evaluator + 22 interceptor + 13 category_mapper).
+All 187 tests must pass before pushing (23 classifier + 56 evaluator + 62 interceptor + 13 category_mapper + 13 llm_client + 20 stack_scanner).
 
 **Live test:** Requires a new CC session. Cannot simulate UserPromptSubmit or PreToolUse from inside a session.
 
@@ -142,6 +165,7 @@ CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role
 
 ## Known Issues / History
 
+- **2026-03-15:** v0.8.x MCP/plugin redesign — glama.ai MCP search with mcp_search_terms, official plugins (plugin:anthropic: prefix), community plugins (plugin:cc-marketplace: prefix), type-aware catalog UNION query, normalize_tool_name_for_matching for conversion tracking, stack_scanner detects .mcp.json MCP servers, mcp_servers filtering in both evaluators, catalog_by_id prefixed+unprefixed key lookup, get_weakness_map_by_type in db.py, classifier emits preferred_tool_type, write_last_cc_tool_type in interceptor.py, extract_cc_tool hardened for non-dict input. BUG-FIXED: dispatch.sh and preuse_hook.sh were writing/reading state.json to different directories (~/.claude/skill-router vs ~/.claude/dispatch). Fixed by syncing installed hook. ~/.claude/skill-router/ deleted.
 - **2026-03-14:** v0.7.0 — PreToolUse interception added. dispatch.sh now silent (Stage 1 + state write only). preuse_hook.sh intercepts Skill/Agent/mcp__* calls, scores marketplace alternatives vs CC's chosen tool, blocks on 10+ point gap. Category-first model: task_type maps to MECE category for targeted search. Unknown categories logged to unknown_categories.jsonl.
 - **2026-03-05:** Haiku markdown wrapping bug — fixed in classifier.py and evaluator.py
 - **2026-03-05:** Compound task types broke registry search — fixed with primary term split

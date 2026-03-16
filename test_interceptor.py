@@ -56,6 +56,16 @@ class TestExtractCcTool(unittest.TestCase):
         result = extract_cc_tool("Agent", {"subagent_type": "general-purpose"})
         assert result == "general-purpose"
 
+    def test_extract_cc_tool_none_input_returns_tool_name(self):
+        from interceptor import extract_cc_tool
+        result = extract_cc_tool("Skill", None)
+        assert result == "Skill"
+
+    def test_extract_cc_tool_non_dict_input_returns_tool_name(self):
+        from interceptor import extract_cc_tool
+        result = extract_cc_tool("Skill", "not-a-dict")
+        assert result == "Skill"
+
     def test_agent_missing_subagent_type(self):
         from interceptor import extract_cc_tool
         result = extract_cc_tool("Agent", {})
@@ -436,6 +446,58 @@ class TestAtomicWrite(unittest.TestCase):
             data = json.load(f)
         assert isinstance(data, dict)
         assert data["last_suggested"] == "owner/repo@skill"
+
+
+class TestLastCcToolType(unittest.TestCase):
+    """write_last_cc_tool_type / get_last_cc_tool_type roundtrip."""
+
+    def setUp(self):
+        import tempfile
+        fd, self.state_file = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        with open(self.state_file, "w") as f:
+            json.dump({}, f)
+
+    def tearDown(self):
+        if os.path.exists(self.state_file):
+            os.unlink(self.state_file)
+
+    def test_write_and_read_roundtrip(self):
+        import interceptor
+        interceptor.write_last_cc_tool_type("mcp", state_file=self.state_file)
+        result = interceptor.get_last_cc_tool_type(state_file=self.state_file)
+        assert result == "mcp"
+
+    def test_write_skill_type(self):
+        import interceptor
+        interceptor.write_last_cc_tool_type("skill", state_file=self.state_file)
+        assert interceptor.get_last_cc_tool_type(state_file=self.state_file) == "skill"
+
+    def test_get_returns_empty_string_when_unset(self):
+        import interceptor
+        result = interceptor.get_last_cc_tool_type(state_file=self.state_file)
+        assert result == ""
+
+    def test_overwrites_previous_value(self):
+        import interceptor
+        interceptor.write_last_cc_tool_type("mcp", state_file=self.state_file)
+        interceptor.write_last_cc_tool_type("agent", state_file=self.state_file)
+        assert interceptor.get_last_cc_tool_type(state_file=self.state_file) == "agent"
+
+    def test_preserves_other_state_keys(self):
+        import interceptor
+        with open(self.state_file, "w") as f:
+            json.dump({"last_task_type": "flutter-building"}, f)
+        interceptor.write_last_cc_tool_type("mcp", state_file=self.state_file)
+        with open(self.state_file) as f:
+            data = json.load(f)
+        assert data["last_task_type"] == "flutter-building"
+        assert data["last_cc_tool_type"] == "mcp"
+
+    def test_get_returns_empty_on_missing_file(self):
+        import interceptor
+        result = interceptor.get_last_cc_tool_type(state_file="/nonexistent/path.json")
+        assert result == ""
 
 
 if __name__ == "__main__":

@@ -38,7 +38,13 @@ Examples:
 - "write the auth middleware" → building
 
 Respond with ONLY valid JSON:
-{"shift": true/false, "domain": "<technology>", "mode": "<mode>", "task_type": "<domain>-<mode>", "confidence": 0.0-1.0}
+{"shift": true/false, "domain": "<technology>", "mode": "<mode>", "task_type": "<domain>-<mode>", "confidence": 0.0-1.0, "preferred_tool_type": "mcp"|"skill"|"agent"|null}
+
+For preferred_tool_type:
+- "mcp": conversation explicitly involves MCP servers by name (e.g. "use the postgres MCP", "connect via MCP", references mcp__ tools)
+- "skill": conversation focuses on skills or slash commands
+- "agent": conversation involves spawning agents or subagents
+- null: no clear tool type preference inferred from context
 
 For domain, use the most specific label: flutter, react, supabase, dispatch, postgres, stripe, etc.
 Use lowercase-hyphenated format. If no clear domain, use "general"."""

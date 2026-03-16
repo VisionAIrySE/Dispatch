@@ -53,8 +53,10 @@ def should_intercept(tool_name: str) -> bool:
     return any(tool_name.startswith(p) for p in _INTERCEPTABLE_PREFIXES)
 
 
-def extract_cc_tool(tool_name: str, tool_input: dict) -> str:
+def extract_cc_tool(tool_name: str, tool_input) -> str:
     """Return a human-readable label for the tool CC is about to invoke."""
+    if not isinstance(tool_input, dict):
+        return tool_name
     if tool_name == "Skill":
         return tool_input.get("skill", tool_name)
     if tool_name == "Agent":
@@ -244,6 +246,31 @@ def normalize_tool_name_for_matching(name: str) -> str:
     if " (" in n and n.endswith(")"):
         n = n[: n.rfind(" (")]
     return n.lower()
+
+
+def write_last_cc_tool_type(tool_type: str, state_file: str = None) -> None:
+    """Persist the cc_tool_type of the last intercepted invocation to state.json."""
+    path = state_file or STATE_FILE
+    try:
+        try:
+            with open(path) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+        state["last_cc_tool_type"] = tool_type
+        _atomic_write(path, state)
+    except Exception:
+        pass
+
+
+def get_last_cc_tool_type(state_file: str = None) -> str:
+    """Return the last intercepted cc_tool_type, or '' if unset."""
+    path = state_file or STATE_FILE
+    try:
+        with open(path) as f:
+            return json.load(f).get("last_cc_tool_type", "")
+    except Exception:
+        return ""
 
 
 def check_conversion(installed_names: list, state_file: str = None) -> bool:

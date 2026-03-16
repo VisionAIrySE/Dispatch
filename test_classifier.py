@@ -229,5 +229,70 @@ class TestClassifyTopicShift(unittest.TestCase):
         assert result["shift"] is False
 
 
+class TestPreferredToolType(unittest.TestCase):
+    """T2.1: classifier must emit preferred_tool_type when context suggests MCPs."""
+
+    def _mock_llm_response(self, result_dict):
+        with patch("classifier.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = json.dumps(result_dict)
+            yield mock_llm
+
+    def test_mcp_flavored_message_emits_mcp_preferred_tool_type(self):
+        """Messages mentioning MCP servers by name → preferred_tool_type = 'mcp'."""
+        payload = {
+            "shift": True, "domain": "database", "mode": "building",
+            "task_type": "database-building", "confidence": 0.9,
+            "preferred_tool_type": "mcp"
+        }
+        with patch("classifier.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = json.dumps(payload)
+            result = classify_topic_shift(
+                ["connect to postgres via mcp server", "query the users table"],
+                cwd="/project"
+            )
+        assert result.get("preferred_tool_type") == "mcp"
+
+    def test_non_mcp_message_emits_null_preferred_tool_type(self):
+        """General dev tasks → preferred_tool_type = null."""
+        payload = {
+            "shift": True, "domain": "flutter", "mode": "building",
+            "task_type": "flutter-building", "confidence": 0.85,
+            "preferred_tool_type": None
+        }
+        with patch("classifier.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = json.dumps(payload)
+            result = classify_topic_shift(
+                ["write a flutter widget for the home screen"],
+                cwd="/project"
+            )
+        assert result.get("preferred_tool_type") is None
+
+    def test_preferred_tool_type_in_system_prompt(self):
+        """SYSTEM_PROMPT must mention preferred_tool_type so LLM knows to emit it."""
+        from classifier import SYSTEM_PROMPT
+        assert "preferred_tool_type" in SYSTEM_PROMPT
+
+    def test_classify_still_returns_required_fields(self):
+        """Adding preferred_tool_type must not break existing required fields."""
+        payload = {
+            "shift": False, "domain": "general", "mode": "building",
+            "task_type": "general-building", "confidence": 0.5,
+            "preferred_tool_type": None
+        }
+        with patch("classifier.get_client") as mock_get_client:
+            mock_llm = MagicMock()
+            mock_get_client.return_value = mock_llm
+            mock_llm.complete.return_value = json.dumps(payload)
+            result = classify_topic_shift(["hello"], cwd="/project")
+        for key in ("shift", "domain", "mode", "task_type", "confidence"):
+            assert key in result, f"Missing required field: {key}"
+
+
 if __name__ == '__main__':
     unittest.main()

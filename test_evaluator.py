@@ -470,6 +470,161 @@ class TestSearchByCategory(unittest.TestCase):
         assert len(ids) == len(set(ids))
 
 
+class TestMcpServerFiltering(unittest.TestCase):
+    """T1.4b: build_recommendation_list must filter already-installed MCPs."""
+
+    def test_filters_mcp_already_in_stack_profile(self):
+        """mcp:github should be excluded when stack_profile contains 'github'."""
+        tools = [
+            {"name": "mcp:github", "score": 80, "installed": False, "reason": "GitHub"},
+            {"name": "mcp:postgres", "score": 75, "installed": False, "reason": "Postgres"},
+        ]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 60, "all": tools}):
+            result = build_recommendation_list(
+                "github-building",
+                stack_profile={"mcp_servers": ["github"], "languages": []}
+            )
+        names = [t["name"] for t in result["all"]]
+        assert "mcp:github" not in names, "Already-installed MCP must be filtered out"
+        assert "mcp:postgres" in names
+
+    def test_filters_multiple_installed_mcps(self):
+        tools = [
+            {"name": "mcp:github", "score": 85, "installed": False, "reason": "a"},
+            {"name": "mcp:postgres", "score": 80, "installed": False, "reason": "b"},
+            {"name": "owner/repo@skill", "score": 70, "installed": False, "reason": "c"},
+        ]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 50, "all": tools}):
+            result = build_recommendation_list(
+                "task",
+                stack_profile={"mcp_servers": ["github", "postgres"], "languages": []}
+            )
+        names = [t["name"] for t in result["all"]]
+        assert "mcp:github" not in names
+        assert "mcp:postgres" not in names
+        assert "owner/repo@skill" in names
+
+    def test_no_stack_profile_returns_all(self):
+        tools = [{"name": "mcp:github", "score": 80, "installed": False, "reason": "a"}]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 50, "all": tools}):
+            result = build_recommendation_list("task", stack_profile=None)
+        assert len(result["all"]) == 1
+
+    def test_empty_mcp_servers_list_returns_all(self):
+        tools = [{"name": "mcp:github", "score": 80, "installed": False, "reason": "a"}]
+        with patch("evaluator.search_registry", return_value=[]), \
+             patch("evaluator.rank_recommendations", return_value={"cc_score": 50, "all": tools}):
+            result = build_recommendation_list(
+                "task", stack_profile={"mcp_servers": [], "languages": []}
+            )
+        assert len(result["all"]) == 1
+
+
+class TestOfficialPluginNoInstallCmd(unittest.TestCase):
+    """T4.2: official plugins must never have install_cmd set — install_url only."""
+
+    def test_search_official_plugins_returns_no_install_cmd(self):
+        """_search_official_plugins results must not include install_cmd."""
+        from evaluator import _search_official_plugins
+        fake_plugins = [
+            {"name": "typescript-lsp", "description": "TS language server",
+             "category": "development", "source": "./plugins/typescript-lsp"}
+        ]
+        with patch("evaluator.requests.get") as mock_get, \
+             patch("evaluator._load_cache", return_value={}), \
+             patch("evaluator._save_cache"):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = fake_plugins
+            mock_get.return_value = mock_resp
+            result = _search_official_plugins("backend-frameworks")
+
+        for item in result:
+            assert "install_cmd" not in item or not item["install_cmd"], \
+                f"Official plugin must not have install_cmd, got: {item}"
+
+
+class TestSearchByCategoryPrefixBehavior(unittest.TestCase):
+    """BUG-B: search_by_category must use mcp_search_terms for glama, prefix results correctly."""
+
+    def _cat(self, search_terms=None, mcp_search_terms=None):
+        return [{"id": "database", "search_terms": search_terms or ["sql"],
+                 "mcp_search_terms": mcp_search_terms or ["postgresql", "mysql"]}]
+
+    def test_uses_mcp_search_terms_for_glama_not_search_terms(self):
+        """Glama call uses mcp_search_terms[0], not search_terms[0]."""
+        from evaluator import search_by_category
+        glama_calls = []
+
+        def mock_glama(term, limit=5):
+            glama_calls.append(term)
+            return []
+
+        cats = self._cat(search_terms=["sql"], mcp_search_terms=["postgresql"])
+        with patch("evaluator._load_categories", return_value=cats), \
+             patch("evaluator._search_one_term", return_value=[]), \
+             patch("evaluator._search_official_plugins", return_value=[]), \
+             patch("evaluator._search_glama", side_effect=mock_glama):
+            search_by_category("database")
+
+        assert "postgresql" in glama_calls, f"Expected 'postgresql' glama call, got {glama_calls}"
+        assert "sql" not in glama_calls, "Glama must use mcp_search_terms not search_terms"
+
+    def test_glama_results_prefixed_with_mcp(self):
+        """Glama results must have 'mcp:' prefix in returned ids."""
+        from evaluator import search_by_category
+        cats = self._cat()
+        with patch("evaluator._load_categories", return_value=cats), \
+             patch("evaluator._search_one_term", return_value=[]), \
+             patch("evaluator._search_official_plugins", return_value=[]), \
+             patch("evaluator._search_glama", return_value=[{"id": "postgres", "description": "PG MCP"}]):
+            result = search_by_category("database")
+
+        ids = [r["id"] for r in result]
+        assert any(i.startswith("mcp:") for i in ids), f"No mcp: prefix found in {ids}"
+        assert "mcp:postgres" in ids
+
+    def test_official_plugins_prefixed_with_plugin_anthropic(self):
+        """Official plugin results must have 'plugin:anthropic:' prefix."""
+        from evaluator import search_by_category
+        cats = [{"id": "testing", "search_terms": ["test"],
+                 "mcp_search_terms": ["pytest"]}]
+        with patch("evaluator._load_categories", return_value=cats), \
+             patch("evaluator._search_one_term", return_value=[]), \
+             patch("evaluator._search_official_plugins", return_value=[
+                 {"id": "plugin:anthropic:my-plugin", "description": "Official plugin"}
+             ]), \
+             patch("evaluator._search_glama", return_value=[]):
+            result = search_by_category("testing")
+
+        ids = [r["id"] for r in result]
+        assert any(i.startswith("plugin:anthropic:") for i in ids), f"No plugin:anthropic: prefix in {ids}"
+
+    def test_search_by_category_merges_all_three_sources(self):
+        """When all sources return data, result contains entries from all three."""
+        from evaluator import search_by_category
+        cats = self._cat()
+        with patch("evaluator._load_categories", return_value=cats), \
+             patch("evaluator._search_one_term", return_value=[
+                 {"id": "owner/repo@sql-skill", "description": "SQL skill"}
+             ]), \
+             patch("evaluator._search_official_plugins", return_value=[
+                 {"id": "plugin:anthropic:db-plugin", "description": "DB plugin"}
+             ]), \
+             patch("evaluator._search_glama", return_value=[
+                 {"id": "postgres-mcp", "description": "Postgres MCP"}
+             ]):
+            result = search_by_category("database")
+
+        ids = [r["id"] for r in result]
+        assert any("@" in i for i in ids), "Missing skill result"
+        assert any(i.startswith("plugin:anthropic:") for i in ids), "Missing plugin result"
+        assert any(i.startswith("mcp:") for i in ids), "Missing MCP result"
+
+
 class TestTwoTierRanking(unittest.TestCase):
     """build_recommendation_list returns described/general split."""
 
