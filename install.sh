@@ -80,6 +80,7 @@ cp category_mapper.py "$DISPATCH_DIR/"
 cp llm_client.py "$DISPATCH_DIR/"
 cp stack_scanner.py "$DISPATCH_DIR/"
 cp categories.json "$DISPATCH_DIR/"
+cp taxonomy.json "$DISPATCH_DIR/"
 
 # ── Seed state files ───────────────────────────────────────────────────────
 # first_run=true → dispatch.sh emits one-time "active" confirmation on first message

@@ -4,7 +4,82 @@ import time
 from typing import Optional
 
 CATEGORIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "categories.json")
+TAXONOMY_FILE   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "taxonomy.json")
 UNKNOWN_LOG_FILE = os.path.expanduser("~/.claude/dispatch/unknown_categories.jsonl")
+
+
+def load_taxonomy() -> dict:
+    """Load taxonomy v2 from taxonomy.json. Returns empty dict on failure."""
+    try:
+        with open(TAXONOMY_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def map_to_taxonomy_path(task_type: str, taxonomy: dict = None) -> dict:
+    """Map a task_type string to a taxonomy v2 path by keyword matching.
+
+    Tokenizes task_type (split on hyphens/spaces) then scores each taxonomy leaf
+    by overlap with its id and tags[].
+
+    Returns:
+        {category_id, subcategory_id, leaf_node_id, tags, confidence}
+    Falls back to map_to_category() for category_id when no good leaf match found.
+    """
+    if not task_type:
+        return {"category_id": None, "subcategory_id": "", "leaf_node_id": "", "tags": [], "confidence": 0}
+
+    if taxonomy is None:
+        taxonomy = load_taxonomy()
+
+    tokens = set(task_type.lower().replace("-", " ").split())
+
+    best_score = 0
+    best_result = None
+
+    for category in taxonomy.get("categories", []):
+        cat_id = category["id"]
+        for subcat in category.get("subcategories", []):
+            subcat_id = subcat["id"]
+            for leaf in subcat.get("leaves", []):
+                leaf_id  = leaf["id"]
+                leaf_tags = set(leaf.get("tags", []))
+
+                score = 0
+                # Exact leaf id in tokens
+                if leaf_id in tokens:
+                    score += 20
+                # Leaf id substring match (both directions, min length 4)
+                elif any(len(t) >= 4 and (leaf_id in t or t in leaf_id) for t in tokens):
+                    score += 8
+                # Token overlap with tags
+                matched = tokens & leaf_tags
+                score += len(matched) * 5
+                # Partial tag match
+                for token in tokens:
+                    if len(token) < 4:
+                        continue
+                    for tag in leaf_tags:
+                        if tag not in matched and (token in tag or tag in token):
+                            score += 1
+
+                if score > best_score:
+                    best_score = score
+                    best_result = {
+                        "category_id":   cat_id,
+                        "subcategory_id": subcat_id,
+                        "leaf_node_id":  leaf_id,
+                        "tags":          sorted(tokens & leaf_tags),
+                        "confidence":    min(100, score * 3),
+                    }
+
+    if best_result and best_score >= 5:
+        return best_result
+
+    # Low-confidence fallback — at least get category_id from flat keyword match
+    cat = map_to_category(task_type)
+    return {"category_id": cat, "subcategory_id": "", "leaf_node_id": "", "tags": [], "confidence": 10 if cat else 0}
 
 
 def load_categories() -> list:
