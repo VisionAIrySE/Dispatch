@@ -33,6 +33,19 @@ def _atomic_write(path: str, data: dict) -> None:
         raise
 
 
+def get_cc_tool_type(tool_name: str) -> str:
+    """Classify the type of tool CC is about to invoke.
+
+    Returns "mcp", "agent", or "skill". Used to weight marketplace search
+    toward same-type alternatives and to record type in the detections log.
+    """
+    if tool_name.startswith("mcp__"):
+        return "mcp"
+    if tool_name == "Agent":
+        return "agent"
+    return "skill"  # Skill and anything else → treated as skill
+
+
 def should_intercept(tool_name: str) -> bool:
     """Return True if this tool type has marketplace alternatives worth comparing."""
     if tool_name in _INTERCEPTABLE_NAMES:

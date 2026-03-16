@@ -68,9 +68,14 @@ Rules:
 - all: marketplace tools only (not CC's tool); score 0-100 by relevance
 - Only include marketplace tools with score >= 40
 - Limit to top 5 marketplace tools, sorted by score descending
-- For registry tools: use the "id" field as the tool name; include install_cmd using the exact id
+- install_cmd: if a tool has a provided install_cmd hint, use it exactly — do NOT fabricate one
+- For skills (id format "owner/repo@skill-name"): install_cmd = "npx skills add owner/repo@skill-name -y"
+- For MCP servers (id starting with "mcp:" or "glama:"): omit install_cmd — leave it out entirely
+- For plugins (id starting with "plugin:"): use the provided install_cmd if present, else omit
 - Write specific reasons grounded in what the developer is actually doing — not generic praise
 - If no marketplace tools are relevant, return {"cc_score": <score>, "all": []}
+- When CC tool type is "mcp": prefer MCP alternatives when scoring if they exist; a well-matched MCP
+  server is directly comparable to another MCP and should score on the same 0-100 scale
 
 Reason quality:
 GOOD: "Provides Firestore query helpers directly applicable to the auth flow you are building."
@@ -356,7 +361,8 @@ def build_recommendation_list(
     cc_tool: str = None,
     model: str = None,
     category_id: str = None,
-    stack_profile: dict = None
+    stack_profile: dict = None,
+    cc_tool_type: str = "skill"
 ) -> dict:
     """Search marketplace registry and rank against CC's chosen tool.
 
@@ -372,6 +378,17 @@ def build_recommendation_list(
         registry_results = search_by_category(category_id)
     else:
         registry_results = search_registry(task_type)
+
+    # Type-aware ordering: when CC is using an MCP, float same-type results to top
+    # so the ranker sees the most relevant alternatives first
+    if cc_tool_type == "mcp":
+        mcp_results = [r for r in registry_results if r.get("id", "").startswith("mcp:") or "mcp" in r.get("id", "").lower()]
+        other_results = [r for r in registry_results if r not in mcp_results]
+        registry_results = mcp_results + other_results
+    elif cc_tool_type == "agent":
+        # Agent calls → general skills and agent-type tools are most relevant; keep ordering as-is
+        pass
+
     cc_desc = describe_cc_tool(cc_tool) if cc_tool else ""
 
     # Build stack context hint for ranker prompt
@@ -381,10 +398,18 @@ def build_recommendation_list(
         if terms:
             stack_context = "Developer's current stack: " + ", ".join(terms[:6])
 
+    # Include cc_tool_type in context so ranker understands what CC was using
+    type_hint = f"\nCC tool type: {cc_tool_type}" if cc_tool_type and cc_tool_type != "skill" else ""
+    effective_context = (context_snippet or "")
+    if stack_context:
+        effective_context = f"{effective_context}\n{stack_context}".strip()
+    if type_hint:
+        effective_context = f"{effective_context}{type_hint}".strip()
+
     result = rank_recommendations(
         task_type=task_type,
         registry_results=registry_results,
-        context_snippet=context_snippet if not stack_context else f"{context_snippet or ''}\n{stack_context}".strip(),
+        context_snippet=effective_context or None,
         cc_tool=cc_tool,
         cc_tool_description=cc_desc,
         model=model or "claude-haiku-4-5-20251001"

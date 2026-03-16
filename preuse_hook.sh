@@ -90,8 +90,9 @@ print(json.dumps({
     'tool_suggested': sys.argv[3],
     'was_blocked': False,
     'was_bypassed': True,
+    'cc_tool_type': sys.argv[4],
 }))
-" "$BY_TASK" "$BY_CAT" "$TOOL_NAME" 2>/dev/null || echo "{}")
+" "$BY_TASK" "$BY_CAT" "$TOOL_NAME" "$CC_TOOL_TYPE" 2>/dev/null || echo "{}")
         curl -s -X POST "$BY_ENDPOINT/api/detections" \
             -H "Authorization: Bearer $BY_TOKEN" \
             -H "Content-Type: application/json" \
@@ -126,7 +127,7 @@ if [ -z "$DISPATCH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
     exit 0
 fi
 
-# ── Extract cc_tool label from tool input ─────────────────────────────────
+# ── Extract cc_tool label and type from tool input ────────────────────────
 CC_TOOL=$(python3 -c "
 import json, sys
 sys.path.insert(0, sys.argv[1])
@@ -134,6 +135,14 @@ from interceptor import extract_cc_tool
 d = json.loads(sys.argv[2])
 print(extract_cc_tool(d.get('tool_name', ''), d.get('tool_input', {})))
 " "$SKILL_ROUTER_DIR" "$HOOK_INPUT" 2>/dev/null || echo "$TOOL_NAME")
+
+CC_TOOL_TYPE=$(python3 -c "
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import get_cc_tool_type
+d = json.loads(sys.argv[2])
+print(get_cc_tool_type(d.get('tool_name', '')))
+" "$SKILL_ROUTER_DIR" "$HOOK_INPUT" 2>/dev/null || echo "skill")
 
 # ── Load task type + context from state (written by dispatch.sh Stage 1) ──
 TASK_TYPE=$(python3 -c "
@@ -178,8 +187,9 @@ print(json.dumps({
     'tool_suggested': sys.argv[3],
     'was_blocked': False,
     'was_installed': True,
+    'cc_tool_type': sys.argv[4],
 }))
-" "$TASK_TYPE" "$CATEGORY" "$CC_TOOL" 2>/dev/null || echo "{}")
+" "$TASK_TYPE" "$CATEGORY" "$CC_TOOL" "$CC_TOOL_TYPE" 2>/dev/null || echo "{}")
         curl -s -X POST "$DISPATCH_ENDPOINT/api/detections" \
             -H "Authorization: Bearer $DISPATCH_TOKEN" \
             -H "Content-Type: application/json" \
@@ -201,8 +211,9 @@ print(json.dumps({
     'context_snippet': sys.argv[2],
     'cc_tool': sys.argv[3],
     'category_id': sys.argv[4],
+    'cc_tool_type': sys.argv[5],
 }))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" > "$RANK_TMP" 2>/dev/null
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" > "$RANK_TMP" 2>/dev/null
 
     RANK_HTTP=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/rank" \
@@ -222,8 +233,8 @@ print(json.dumps({
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5])))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
     fi
 else
     # BYOK path
@@ -231,8 +242,8 @@ else
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5])))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" 2>/dev/null || echo '{"all":[],"cc_score":0}')
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6])))
+" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
 fi
 
 # ── Check threshold: any marketplace tool beats CC by >= THRESHOLD? ────────
@@ -279,8 +290,9 @@ print(json.dumps({
     'was_blocked': sys.argv[5] == 'yes',
     'cc_score': cc_score,
     'top_pick_score': top_score,
+    'cc_tool_type': sys.argv[6],
 }))
-" "$RECOMMENDATIONS" "$TASK_TYPE" "$CATEGORY" "$TOP_TOOL_NAME" "$SHOULD_BLOCK" 2>/dev/null || echo "{}")
+" "$RECOMMENDATIONS" "$TASK_TYPE" "$CATEGORY" "$TOP_TOOL_NAME" "$SHOULD_BLOCK" "$CC_TOOL_TYPE" 2>/dev/null || echo "{}")
     curl -s -X POST "$DISPATCH_ENDPOINT/api/detections" \
         -H "Authorization: Bearer $DISPATCH_TOKEN" \
         -H "Content-Type: application/json" \
@@ -307,10 +319,11 @@ write_last_suggested(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$TOP_TOOL_NAME" 2>/dev/null || true
 
 # ── Render comparison output — exit 2 blocks the tool call ────────────────
-python3 - "$CC_TOOL" "$RECOMMENDATIONS" "$TASK_TYPE" <<'PYEOF'
+python3 - "$CC_TOOL" "$RECOMMENDATIONS" "$TASK_TYPE" "$CC_TOOL_TYPE" <<'PYEOF'
 import json, sys
 
-cc_tool = sys.argv[1]
+cc_tool    = sys.argv[1]
+cc_tool_type = sys.argv[4] if len(sys.argv) > 4 else "skill"
 try:
     recs = json.loads(sys.argv[2])
 except Exception:
@@ -322,8 +335,11 @@ all_tools = recs.get("all", [])
 top_pick = recs.get("top_pick") or (all_tools[0] if all_tools else None)
 cc_score = recs.get("cc_score", 0)
 
+# Infer the display label for CC's tool type
+cc_type_label = {"mcp": "MCP server", "agent": "Agent", "skill": "Skill"}.get(cc_tool_type, "Skill")
+
 lines = [
-    f"[DISPATCH] Intercepted: CC is about to use '{cc_tool}' for {task_display}.",
+    f"[DISPATCH] Intercepted: CC is about to use '{cc_tool}' ({cc_type_label}) for {task_display}.",
     f"CC's tool score for this task: {cc_score}/100",
     "",
     "Marketplace alternatives:",
@@ -333,25 +349,50 @@ for i, tool in enumerate(all_tools, 1):
     name = tool.get("name", "")
     score = tool.get("score", "?")
     reason = tool.get("reason", "")
-    install_cmd = tool.get("install_cmd", "").replace("\n", " ")
-    install_url = tool.get("install_url", "").replace("\n", " ")
+    install_cmd = (tool.get("install_cmd") or "").replace("\n", " ").strip()
+    install_url = (tool.get("install_url") or "").replace("\n", " ").strip()
     top_marker = " ← TOP PICK" if (top_pick and name == top_pick.get("name")) else ""
 
-    lines.append(f"  {i}. {name} [{score}/100]{top_marker}")
+    # Infer tool type from name prefix for display
+    if name.startswith("mcp:"):
+        tool_label = "MCP"
+        display_name = name[4:]  # strip "mcp:" prefix for readability
+    elif name.startswith("plugin:"):
+        parts = name.split(":", 2)
+        tool_label = "Plugin"
+        display_name = parts[2] if len(parts) > 2 else name
+    else:
+        tool_label = "Skill"
+        display_name = name
+
+    lines.append(f"  {i}. {display_name} [{tool_label}] [{score}/100]{top_marker}")
     if reason:
         lines.append(f"     Why: {reason}")
     if install_cmd:
         lines.append(f"     Install + restart: {install_cmd} && claude")
-    if install_url:
+    elif install_url and tool_label == "MCP":
+        lines.append(f"     Install guide: {install_url}")
+    if install_url and not (tool_label == "MCP" and not install_cmd):
         lines.append(f"     More info: {install_url}")
 
-top_name = top_pick["name"] if top_pick else "the top tool"
+if top_pick:
+    tp_name = top_pick.get("name", "")
+    if tp_name.startswith("mcp:"):
+        top_display = tp_name[4:]
+    elif tp_name.startswith("plugin:"):
+        parts = tp_name.split(":", 2)
+        top_display = parts[2] if len(parts) > 2 else tp_name
+    else:
+        top_display = tp_name
+else:
+    top_display = "the top tool"
+
 lines.extend([
     "",
-    f"⚠ A marketplace tool scores higher than '{cc_tool}' for this task.",
+    f"⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.",
     "  Options:",
     f"  1. Say 'proceed' to continue with '{cc_tool}' (one-time bypass, no restart needed)",
-    f"  2. Install {top_name} — run /compact first, then install and restart CC",
+    f"  2. Install {top_display} — run /compact first, then install and restart CC",
     "  3. Ignore Dispatch for this task — say 'skip dispatch'",
     "",
     "Present these options to the user. Wait for their response before taking any action.",

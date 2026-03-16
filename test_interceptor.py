@@ -67,6 +67,30 @@ class TestExtractCcTool(unittest.TestCase):
         assert result == "WeirdTool"
 
 
+class TestGetCcToolType(unittest.TestCase):
+    def test_skill_tool_returns_skill(self):
+        from interceptor import get_cc_tool_type
+        assert get_cc_tool_type("Skill") == "skill"
+
+    def test_agent_tool_returns_agent(self):
+        from interceptor import get_cc_tool_type
+        assert get_cc_tool_type("Agent") == "agent"
+
+    def test_mcp_tool_returns_mcp(self):
+        from interceptor import get_cc_tool_type
+        assert get_cc_tool_type("mcp__github__create_pull_request") == "mcp"
+        assert get_cc_tool_type("mcp__supabase__execute_sql") == "mcp"
+
+    def test_unknown_tool_returns_skill(self):
+        from interceptor import get_cc_tool_type
+        # Unrecognized tools default to skill for safe comparison
+        assert get_cc_tool_type("WeirdTool") == "skill"
+
+    def test_bare_mcp_prefix_returns_mcp(self):
+        from interceptor import get_cc_tool_type
+        assert get_cc_tool_type("mcp__anything") == "mcp"
+
+
 class TestBypassToken(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
