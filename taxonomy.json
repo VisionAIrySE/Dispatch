@@ -1,0 +1,1033 @@
+{
+  "version": "2.0.0",
+  "boundary_rules": {
+    "data-storage": "Tools where you model, store, and query data — schema + transactions",
+    "search-discovery": "Tools where search and retrieval is the primary interface — index, query by similarity or text",
+    "ai-ml": "Tools whose core value is model inference, training, or orchestration",
+    "frontend": "Tools that run in the browser or generate browser-rendered output",
+    "mobile": "Tools whose primary target is a mobile OS — distinct build toolchain",
+    "backend": "Tools that implement your own server-side logic and APIs",
+    "infrastructure": "Tools that provision and run compute, network, and storage resources",
+    "delivery": "Tools that build, test, and ship code changes — CI/CD pipeline tooling",
+    "integrations": "Tools that connect to third-party services you don't own",
+    "identity-security": "Tools that manage who can access what — auth, secrets, compliance",
+    "observability": "Tools that tell you what is happening in production",
+    "testing": "Tools that verify correctness — runs assertions against code",
+    "data-engineering": "Tools for transforming and moving data between systems",
+    "payments": "Tools for handling money — billing, checkout, subscriptions",
+    "source-control": "Tools for managing code history and collaboration",
+    "documentation": "Tools for capturing and publishing knowledge"
+  },
+  "categories": [
+    {
+      "id": "source-control",
+      "label": "Source Control & Collaboration",
+      "subcategories": [
+        {
+          "id": "git-platforms",
+          "label": "Git Platforms",
+          "leaves": [
+            {
+              "id": "github",
+              "label": "GitHub",
+              "tags": ["github", "pr", "pull-request", "issue", "branch", "commit", "review", "merge", "fork", "gist", "actions-trigger", "gh", "release", "repository", "clone"]
+            },
+            {
+              "id": "gitlab",
+              "label": "GitLab",
+              "tags": ["gitlab", "merge-request", "pipeline", "registry", "self-hosted", "gitlab-ci", "group"]
+            },
+            {
+              "id": "bitbucket",
+              "label": "Bitbucket",
+              "tags": ["bitbucket", "pr", "pipeline", "atlassian", "jira-integration", "mercurial"]
+            }
+          ]
+        },
+        {
+          "id": "git-tooling",
+          "label": "Git Tooling",
+          "leaves": [
+            {
+              "id": "hooks-workflows",
+              "label": "Hooks & Commit Workflows",
+              "tags": ["pre-commit", "conventional-commits", "husky", "lint-staged", "commitizen", "commitlint", "git-hooks", "lefthook", "semantic-versioning", "changelog-generation"]
+            },
+            {
+              "id": "diff-review",
+              "label": "Diff & History",
+              "tags": ["diff", "blame", "bisect", "reflog", "cherry-pick", "rebase", "conflict-resolution", "interactive-rebase", "git-log", "stash"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-storage",
+      "label": "Data & Storage",
+      "subcategories": [
+        {
+          "id": "relational",
+          "label": "Relational Databases",
+          "leaves": [
+            {
+              "id": "postgresql",
+              "label": "PostgreSQL",
+              "tags": ["postgresql", "postgres", "pg", "psql", "query", "sql", "rls", "row-level-security", "migration", "schema", "index", "performance", "joins", "views", "triggers", "partitioning", "pg-extensions", "explain-analyze", "connection-pooling", "pgbouncer", "stored-procedures", "functions", "sequences", "vacuum", "plpgsql"]
+            },
+            {
+              "id": "mysql",
+              "label": "MySQL / MariaDB",
+              "tags": ["mysql", "mariadb", "query", "migration", "schema", "stored-procedures", "replication", "innodb", "binlog", "foreign-keys", "transactions"]
+            },
+            {
+              "id": "sqlite",
+              "label": "SQLite",
+              "tags": ["sqlite", "local", "embedded", "wasm", "edge", "libsql", "turso", "file-based", "in-memory", "serverless-sqlite"]
+            },
+            {
+              "id": "other-sql",
+              "label": "Other SQL Databases",
+              "tags": ["cockroachdb", "tidb", "crdb", "distributed-sql", "citus", "yugabytedb", "duckdb", "motherduck", "analytical-sql", "olap"]
+            }
+          ]
+        },
+        {
+          "id": "nosql",
+          "label": "NoSQL Databases",
+          "leaves": [
+            {
+              "id": "document",
+              "label": "Document Databases",
+              "tags": ["mongodb", "firestore", "couchdb", "atlas", "aggregation-pipeline", "bson", "document-store", "flexible-schema", "json-documents", "collection", "realm"]
+            },
+            {
+              "id": "key-value",
+              "label": "Key-Value & Cache",
+              "tags": ["redis", "upstash", "dragonfly", "keydb", "valkey", "cache", "session", "ttl", "pubsub", "streams", "lua-scripts", "sorted-sets", "rate-limiting", "distributed-lock"]
+            },
+            {
+              "id": "wide-column",
+              "label": "Wide-Column & Time-Series",
+              "tags": ["cassandra", "scylla", "dynamodb", "bigtable", "time-series", "influxdb", "timescaledb", "column-family", "partition-key", "consistent-hashing"]
+            },
+            {
+              "id": "graph",
+              "label": "Graph Databases",
+              "tags": ["neo4j", "dgraph", "tigergraph", "cypher", "graph-traversal", "nodes", "edges", "relationships", "knowledge-graph", "property-graph"]
+            }
+          ]
+        },
+        {
+          "id": "vector",
+          "label": "Vector Storage",
+          "leaves": [
+            {
+              "id": "vector-databases",
+              "label": "Purpose-Built Vector Databases",
+              "tags": ["pinecone", "weaviate", "qdrant", "chroma", "milvus", "zilliz", "similarity-search", "ann", "hnsw", "cosine", "dot-product", "euclidean", "approximate-nearest-neighbor", "vector-index", "namespace", "metadata-filtering"]
+            },
+            {
+              "id": "vector-extensions",
+              "label": "Vector Extensions for Existing DBs",
+              "tags": ["pgvector", "pg-embedding", "redis-vector", "mongo-vector", "hybrid-search", "ivfflat", "pg-ai", "vector-column", "embedding-storage"]
+            }
+          ]
+        },
+        {
+          "id": "managed-platforms",
+          "label": "Managed DB Platforms",
+          "leaves": [
+            {
+              "id": "supabase",
+              "label": "Supabase",
+              "tags": ["supabase", "rls", "realtime", "edge-functions", "storage", "pgvector", "row-level-security", "supabase-auth", "supabase-storage", "buckets", "postgres-functions", "supabase-cli"]
+            },
+            {
+              "id": "firebase",
+              "label": "Firebase / Firestore",
+              "tags": ["firebase", "firestore", "realtime-database", "rules", "cloud-functions", "hosting", "firebase-auth", "fcm", "remote-config", "analytics"]
+            },
+            {
+              "id": "neon",
+              "label": "Neon",
+              "tags": ["neon", "serverless-postgres", "branching", "autoscale", "connection-pooling", "neon-branches", "cold-start"]
+            },
+            {
+              "id": "planetscale",
+              "label": "PlanetScale",
+              "tags": ["planetscale", "branching", "vitess", "mysql-compatible", "non-blocking-schema", "deploy-requests", "rewind"]
+            },
+            {
+              "id": "turso",
+              "label": "Turso",
+              "tags": ["turso", "sqlite-edge", "libsql", "embedded-replicas", "multi-tenant", "edge-database", "per-user-db"]
+            }
+          ]
+        },
+        {
+          "id": "object-file-storage",
+          "label": "Object & File Storage",
+          "leaves": [
+            {
+              "id": "cloud-object",
+              "label": "Cloud Object Storage",
+              "tags": ["s3", "gcs", "r2", "azure-blob", "cloudflare-r2", "presigned-url", "multipart", "cdn-origin", "bucket", "object-storage", "minio", "backblaze"]
+            },
+            {
+              "id": "local-file",
+              "label": "Local & Stream File Handling",
+              "tags": ["filesystem", "tmp", "stream", "buffer", "zip", "tar", "pdf-storage", "file-upload", "multipart-form", "chunked-upload"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "search-discovery",
+      "label": "Search & Discovery",
+      "subcategories": [
+        {
+          "id": "text-search",
+          "label": "Text Search Engines",
+          "leaves": [
+            {
+              "id": "full-text",
+              "label": "Full-Text Search",
+              "tags": ["elasticsearch", "opensearch", "solr", "lucene", "inverted-index", "relevance", "bm25", "facets", "aggregations", "kibana", "elk", "full-text-search", "sharding", "mapping"]
+            },
+            {
+              "id": "lightweight-search",
+              "label": "Lightweight Search",
+              "tags": ["typesense", "meilisearch", "algolia", "fuse", "minisearch", "instant-search", "typo-tolerance", "faceted-search", "self-hosted-search", "fuzzy-search"]
+            }
+          ]
+        },
+        {
+          "id": "semantic-search",
+          "label": "Semantic & Vector Search",
+          "leaves": [
+            {
+              "id": "embedding-models",
+              "label": "Embedding Models",
+              "tags": ["openai-embeddings", "cohere-embed", "voyage", "bge", "e5", "sentence-transformers", "instructor", "jina", "nomic", "text-embedding-3", "ada", "embedding-api", "vectorization"]
+            },
+            {
+              "id": "semantic-infra",
+              "label": "Semantic Retrieval Infrastructure",
+              "tags": ["reranking", "hybrid-search", "mmr", "rag-retrieval", "context-window", "chunking-strategy", "late-chunking", "colbert", "splade", "dense-retrieval", "sparse-retrieval"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-ml",
+      "label": "AI & Machine Learning",
+      "subcategories": [
+        {
+          "id": "model-access",
+          "label": "Model Access & Inference",
+          "leaves": [
+            {
+              "id": "frontier-apis",
+              "label": "Frontier Model APIs",
+              "tags": ["openai", "anthropic", "claude", "gpt-4o", "gpt-4", "gpt-3.5", "gemini", "grok", "xai", "mistral", "cohere", "ai21", "streaming", "function-calling", "tool-use", "vision-api", "chat-completions", "responses-api", "structured-outputs", "batch-api"]
+            },
+            {
+              "id": "open-weight-apis",
+              "label": "Open-Weight Model APIs",
+              "tags": ["groq", "together-ai", "fireworks", "deepinfra", "perplexity", "replicate", "deepseek", "qwen", "llama", "mixtral", "phi", "gemma", "fast-inference", "low-cost-inference", "openrouter", "lepton"]
+            },
+            {
+              "id": "self-hosted-inference",
+              "label": "Self-Hosted Inference",
+              "tags": ["ollama", "vllm", "llamacpp", "lm-studio", "tgi", "tabbyml", "gguf", "quantization", "awq", "exllama", "openai-compatible-server", "local-llm", "private-inference", "air-gapped"]
+            }
+          ]
+        },
+        {
+          "id": "llm-orchestration",
+          "label": "LLM Orchestration",
+          "leaves": [
+            {
+              "id": "frameworks",
+              "label": "Orchestration Frameworks",
+              "tags": ["langchain", "llamaindex", "haystack", "semantic-kernel", "dspy", "marvin", "ell", "guidance", "outlines", "txtai", "flow", "chain", "pipeline-orchestration", "llm-framework"]
+            },
+            {
+              "id": "structured-output",
+              "label": "Structured Output & Validation",
+              "tags": ["instructor", "outlines", "guidance", "jsonformer", "lmql", "function-calling", "pydantic-ai", "schema-enforcement", "json-mode", "constrained-generation", "type-safe-llm"]
+            },
+            {
+              "id": "prompt-ops",
+              "label": "Prompt Management & Observability",
+              "tags": ["langsmith", "promptfoo", "braintrust", "helicone", "portkey", "tracing", "versioning", "eval", "a-b-testing", "prompt-registry", "prompt-management", "llm-observability", "token-tracking"]
+            }
+          ]
+        },
+        {
+          "id": "rag-pipelines",
+          "label": "RAG Pipelines",
+          "leaves": [
+            {
+              "id": "ingestion",
+              "label": "Data Ingestion & Chunking",
+              "tags": ["document-loading", "pdf-parsing", "web-scraping", "chunking", "unstructured", "docling", "markitdown", "llama-parse", "preprocessing", "text-splitting", "recursive-splitter", "semantic-chunking", "file-loader"]
+            },
+            {
+              "id": "retrieval",
+              "label": "Retrieval & Reranking",
+              "tags": ["similarity-search", "hybrid-search", "bm25", "dense", "sparse", "reranking", "cohere-rerank", "contextual-compression", "mmr", "parent-document", "multi-query", "hypothetical-document"]
+            },
+            {
+              "id": "rag-evaluation",
+              "label": "RAG Evaluation",
+              "tags": ["ragas", "trulens", "deepeval", "langsmith-eval", "continuous-eval", "faithfulness", "relevance", "groundedness", "hallucination-detection", "context-recall", "answer-relevancy"]
+            }
+          ]
+        },
+        {
+          "id": "agents",
+          "label": "AI Agents",
+          "leaves": [
+            {
+              "id": "multi-agent",
+              "label": "Multi-Agent Frameworks",
+              "tags": ["autogen", "crewai", "langgraph", "magentic-one", "metagpt", "agentscope", "swarm", "agent-network", "role-playing", "task-delegation", "orchestrator", "worker-agents", "multi-agent-system"]
+            },
+            {
+              "id": "single-agent",
+              "label": "Single-Agent Frameworks",
+              "tags": ["smolagents", "agentkit", "react-pattern", "tool-use", "planning", "memory", "reflexion", "self-critique", "tool-calling", "agentic-loop", "step-by-step-reasoning"]
+            },
+            {
+              "id": "computer-use",
+              "label": "Computer Use & Browser Agents",
+              "tags": ["browser-automation", "desktop-control", "vision-agent", "operator", "ui-tars", "screenshot", "dom-manipulation", "web-agent", "click", "type", "navigate", "computer-use-api"]
+            }
+          ]
+        },
+        {
+          "id": "fine-tuning",
+          "label": "Fine-Tuning & Training",
+          "leaves": [
+            {
+              "id": "peft",
+              "label": "Parameter-Efficient Fine-Tuning",
+              "tags": ["lora", "qlora", "dora", "adapter", "prefix-tuning", "prompt-tuning", "peft", "huggingface-peft", "parameter-efficient", "low-rank", "rank-adaptation"]
+            },
+            {
+              "id": "alignment",
+              "label": "Alignment & RLHF",
+              "tags": ["rlhf", "dpo", "ppo", "sft", "reward-modeling", "constitutional-ai", "preference-data", "trl", "trlx", "orpo", "simpo", "rejection-sampling"]
+            },
+            {
+              "id": "training-infra",
+              "label": "Training Infrastructure",
+              "tags": ["pytorch", "deepspeed", "accelerate", "unsloth", "axolotl", "megatron", "fsdp", "gradient-checkpointing", "mixed-precision", "multi-gpu", "distributed-training", "tensor-parallel"]
+            }
+          ]
+        },
+        {
+          "id": "mlops",
+          "label": "MLOps",
+          "leaves": [
+            {
+              "id": "experiment-tracking",
+              "label": "Experiment Tracking",
+              "tags": ["mlflow", "wandb", "neptune", "comet", "clearml", "sacred", "run-tracking", "hyperparameter", "artifact-store", "model-comparison", "sweep", "grid-search"]
+            },
+            {
+              "id": "model-serving",
+              "label": "Model Serving & Registry",
+              "tags": ["bentoml", "ray-serve", "triton", "torchserve", "kserve", "model-registry", "versioning", "a-b-deployment", "canary", "shadow-deployment", "batch-inference", "online-inference"]
+            }
+          ]
+        },
+        {
+          "id": "multimodal",
+          "label": "Multimodal",
+          "leaves": [
+            {
+              "id": "vision-language",
+              "label": "Vision-Language Models",
+              "tags": ["gpt-vision", "claude-vision", "gemini-vision", "llava", "moondream", "image-understanding", "ocr", "document-ai", "screenshot-analysis", "image-to-text", "visual-qa", "pdf-vision"]
+            },
+            {
+              "id": "speech",
+              "label": "Speech-to-Text",
+              "tags": ["whisper", "deepgram", "assemblyai", "rev", "gladia", "speechmatics", "stt", "transcription", "real-time-transcription", "speaker-diarization", "word-timestamps", "language-detection"]
+            },
+            {
+              "id": "tts-voice",
+              "label": "Text-to-Speech & Voice",
+              "tags": ["elevenlabs", "cartesia", "playht", "coqui", "bark", "openai-tts", "voice-cloning", "ssml", "streaming-audio", "voice-design", "emotion-control", "multilingual-tts"]
+            },
+            {
+              "id": "image-video-gen",
+              "label": "Image & Video Generation",
+              "tags": ["stable-diffusion", "flux", "dall-e", "midjourney", "runway", "sora", "comfyui", "a1111", "lora-training", "controlnet", "img2img", "inpainting", "video-gen", "image-gen", "text-to-image"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "label": "Frontend & UI",
+      "subcategories": [
+        {
+          "id": "frameworks",
+          "label": "Frontend Frameworks",
+          "leaves": [
+            {
+              "id": "react-ecosystem",
+              "label": "React Ecosystem",
+              "tags": ["react", "nextjs", "next.js", "remix", "gatsby", "vite", "cra", "hooks", "context", "zustand", "jotai", "react-query", "tanstack", "server-components", "rsc", "use-client", "use-server", "app-router", "pages-router", "suspense"]
+            },
+            {
+              "id": "vue-ecosystem",
+              "label": "Vue Ecosystem",
+              "tags": ["vue", "nuxt", "composition-api", "pinia", "vuex", "vite", "quasar", "vue-router", "vueuse", "script-setup", "defineComponent"]
+            },
+            {
+              "id": "angular",
+              "label": "Angular",
+              "tags": ["angular", "signals", "rxjs", "ngrx", "standalone", "ivy", "zone", "angular-cli", "dependency-injection", "decorators", "pipes", "directives"]
+            },
+            {
+              "id": "svelte",
+              "label": "Svelte / SvelteKit",
+              "tags": ["svelte", "sveltekit", "stores", "runes", "svelte-kit", "load-function", "form-actions", "server-routes"]
+            },
+            {
+              "id": "meta-frameworks",
+              "label": "Other Frameworks",
+              "tags": ["astro", "qwik", "solid", "solidstart", "htmx", "alpine", "islands-architecture", "fresh", "analog", "preact", "inferno", "lit", "web-components"]
+            }
+          ]
+        },
+        {
+          "id": "styling",
+          "label": "Styling & Design Systems",
+          "leaves": [
+            {
+              "id": "utility-css",
+              "label": "Utility CSS",
+              "tags": ["tailwind", "unocss", "windi", "css-modules", "atomic-css", "postcss", "tailwind-plugins", "dark-mode", "responsive-design", "jit"]
+            },
+            {
+              "id": "component-libs",
+              "label": "Component Libraries",
+              "tags": ["shadcn", "radix", "headless-ui", "chakra", "mantine", "daisyui", "material-ui", "mui", "ant-design", "tremor", "nextui", "flowbite", "ariakit", "react-aria", "primereact"]
+            },
+            {
+              "id": "design-tokens",
+              "label": "Design Systems & Tokens",
+              "tags": ["figma", "storybook", "tokens", "theme", "design-system", "css-variables", "style-dictionary", "chromatic", "zeroheight", "supernova", "specify"]
+            }
+          ]
+        },
+        {
+          "id": "browser-runtime",
+          "label": "Browser Runtime",
+          "leaves": [
+            {
+              "id": "state-data",
+              "label": "State & Data Fetching",
+              "tags": ["react-query", "swr", "trpc", "apollo-client", "relay", "urql", "tanstack-query", "zustand", "redux", "redux-toolkit", "xstate", "valtio", "optimistic-updates", "cache-invalidation"]
+            },
+            {
+              "id": "performance",
+              "label": "Performance & Build",
+              "tags": ["web-vitals", "lighthouse", "bundle-analyzer", "lazy-loading", "code-splitting", "service-worker", "pwa", "webpack", "rollup", "esbuild", "parcel", "turbopack", "preload", "prefetch"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mobile",
+      "label": "Mobile Development",
+      "subcategories": [
+        {
+          "id": "cross-platform",
+          "label": "Cross-Platform",
+          "leaves": [
+            {
+              "id": "react-native",
+              "label": "React Native / Expo",
+              "tags": ["react-native", "expo", "navigation", "metro", "hermes", "eas", "bare-workflow", "managed-workflow", "native-modules", "new-architecture", "turbo-modules", "fabric", "expo-router"]
+            },
+            {
+              "id": "flutter",
+              "label": "Flutter",
+              "tags": ["flutter", "dart", "pub", "widgets", "bloc", "riverpod", "getx", "material3", "cupertino", "platform-channels", "flutter-native", "go-router", "freezed", "build-runner"]
+            }
+          ]
+        },
+        {
+          "id": "native",
+          "label": "Native Mobile",
+          "leaves": [
+            {
+              "id": "ios",
+              "label": "iOS / macOS",
+              "tags": ["swift", "swiftui", "uikit", "xcode", "cocoapods", "spm", "app-store", "testflight", "instruments", "core-data", "combine", "async-await", "appclip", "widget-kit"]
+            },
+            {
+              "id": "android",
+              "label": "Android",
+              "tags": ["kotlin", "jetpack-compose", "android-studio", "gradle", "room", "hilt", "coroutines", "flow", "play-store", "material-you", "navigation-compose", "viewmodel", "workmanager"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "backend",
+      "label": "Backend & APIs",
+      "subcategories": [
+        {
+          "id": "frameworks",
+          "label": "Server Frameworks",
+          "leaves": [
+            {
+              "id": "node",
+              "label": "Node.js Frameworks",
+              "tags": ["express", "fastify", "nestjs", "hono", "bun", "elysia", "koa", "h3", "nitro", "middleware", "routing", "node", "nodejs", "typescript-backend", "esm"]
+            },
+            {
+              "id": "python",
+              "label": "Python Frameworks",
+              "tags": ["fastapi", "django", "flask", "litestar", "starlette", "uvicorn", "pydantic", "sqlalchemy", "alembic", "celery", "asyncio", "python", "gunicorn", "wsgi", "asgi"]
+            },
+            {
+              "id": "go",
+              "label": "Go Frameworks",
+              "tags": ["gin", "echo", "fiber", "chi", "gorilla", "grpc-go", "gorm", "sqlc", "pgx", "golang", "go", "goroutine", "context-go"]
+            },
+            {
+              "id": "rust",
+              "label": "Rust Frameworks",
+              "tags": ["actix", "axum", "rocket", "tokio", "sqlx", "tower", "tonic", "rust", "cargo", "async-rust", "serde", "anyhow"]
+            },
+            {
+              "id": "other-backends",
+              "label": "Other Backend Frameworks",
+              "tags": ["rails", "sinatra", "hanami", "laravel", "symfony", "php", "ruby", "spring", "ktor", "elixir", "phoenix", "java", "dotnet", "aspnet"]
+            }
+          ]
+        },
+        {
+          "id": "api-design",
+          "label": "API Design",
+          "leaves": [
+            {
+              "id": "rest",
+              "label": "REST APIs",
+              "tags": ["openapi", "swagger", "openapi-spec", "json-schema", "api-versioning", "hateoas", "http-methods", "status-codes", "rest", "crud", "pagination", "filtering", "rate-limiting-api"]
+            },
+            {
+              "id": "graphql",
+              "label": "GraphQL",
+              "tags": ["graphql", "apollo-server", "pothos", "strawberry", "hasura", "subscriptions", "dataloaders", "schema-first", "code-first", "graphql-yoga", "type-graphql", "nexus", "n-plus-one"]
+            },
+            {
+              "id": "rpc",
+              "label": "RPC & Type-Safe APIs",
+              "tags": ["grpc", "trpc", "protobuf", "twirp", "connect", "buf", "type-safe-api", "end-to-end-types", "server-actions"]
+            }
+          ]
+        },
+        {
+          "id": "serverless-edge",
+          "label": "Serverless & Edge",
+          "leaves": [
+            {
+              "id": "functions",
+              "label": "Serverless Functions",
+              "tags": ["lambda", "cloud-functions", "azure-functions", "vercel-functions", "netlify-functions", "serverless", "event-driven", "cold-start", "warm-up", "function-timeout"]
+            },
+            {
+              "id": "edge-runtime",
+              "label": "Edge Runtime",
+              "tags": ["cloudflare-workers", "vercel-edge", "fastly", "edge-config", "deno-deploy", "wasm", "webassembly", "edge-middleware", "geo-routing", "edge-cache"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "label": "Cloud Infrastructure",
+      "subcategories": [
+        {
+          "id": "cloud-providers",
+          "label": "Cloud Providers",
+          "leaves": [
+            {
+              "id": "aws",
+              "label": "AWS",
+              "tags": ["aws", "ec2", "ecs", "eks", "lambda", "s3", "rds", "sqs", "sns", "cloudwatch", "iam", "vpc", "cdk", "cloudformation", "sam", "amplify", "route53", "elb", "alb", "codepipeline"]
+            },
+            {
+              "id": "gcp",
+              "label": "Google Cloud",
+              "tags": ["gcp", "google-cloud", "cloud-run", "gke", "bigquery", "pub-sub", "cloud-functions", "firebase", "cloud-sql", "gcs", "artifact-registry", "cloud-build", "vertexai"]
+            },
+            {
+              "id": "azure",
+              "label": "Azure",
+              "tags": ["azure", "aks", "azure-functions", "cosmos-db", "azure-storage", "devops", "entra", "app-service", "service-bus", "container-apps", "azure-openai", "bicep", "arm"]
+            }
+          ]
+        },
+        {
+          "id": "iac",
+          "label": "Infrastructure as Code",
+          "leaves": [
+            {
+              "id": "declarative-iac",
+              "label": "Declarative IaC",
+              "tags": ["terraform", "opentofu", "pulumi", "cdk", "cloudformation", "bicep", "arm", "crossplane", "state-management", "plan-apply", "drift-detection", "tfstate", "workspace"]
+            },
+            {
+              "id": "configuration",
+              "label": "Configuration Management",
+              "tags": ["ansible", "chef", "puppet", "salt", "cloud-init", "packer", "ami", "playbook", "inventory", "idempotent", "provisioning"]
+            }
+          ]
+        },
+        {
+          "id": "containers",
+          "label": "Containers",
+          "leaves": [
+            {
+              "id": "container-runtime",
+              "label": "Container Runtime & Build",
+              "tags": ["docker", "podman", "containerd", "buildkit", "dockerfile", "multi-stage", "distroless", "compose", "docker-compose", "layer-caching", "image-registry", "ecr", "gcr", "ghcr"]
+            },
+            {
+              "id": "orchestration",
+              "label": "Container Orchestration",
+              "tags": ["kubernetes", "k8s", "helm", "kustomize", "argocd", "flux", "k9s", "lens", "rancher", "eks", "gke", "aks", "kind", "minikube", "pods", "deployments", "services", "ingress", "hpa"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delivery",
+      "label": "CI/CD & Delivery",
+      "subcategories": [
+        {
+          "id": "cicd-platforms",
+          "label": "CI/CD Platforms",
+          "leaves": [
+            {
+              "id": "pipeline-tools",
+              "label": "Pipeline Tools",
+              "tags": ["github-actions", "gitlab-ci", "circleci", "jenkins", "buildkite", "travis", "drone", "tekton", "argo-workflows", "dagger", "workflow", "pipeline", "job", "runner", "artifact"]
+            }
+          ]
+        },
+        {
+          "id": "release-management",
+          "label": "Release Management",
+          "leaves": [
+            {
+              "id": "versioning-release",
+              "label": "Versioning & Release",
+              "tags": ["semantic-release", "changesets", "release-please", "conventional-commits", "versioning", "changelogs", "tagging", "npm-publish", "cargo-publish", "pypi-publish", "semver"]
+            },
+            {
+              "id": "feature-flags",
+              "label": "Feature Flags & Progressive Delivery",
+              "tags": ["launchdarkly", "growthbook", "flagsmith", "unleash", "feature-flags", "blue-green", "canary", "rollback", "zero-downtime", "progressive-delivery", "a-b-deployment"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "integrations",
+      "label": "External Integrations",
+      "subcategories": [
+        {
+          "id": "communication",
+          "label": "Communication Services",
+          "leaves": [
+            {
+              "id": "messaging",
+              "label": "Messaging & Chat",
+              "tags": ["slack", "discord", "teams", "twilio", "vonage", "sms", "push-notifications", "whatsapp", "telegram", "webhook-delivery", "bot", "chatbot"]
+            },
+            {
+              "id": "email",
+              "label": "Email",
+              "tags": ["sendgrid", "resend", "postmark", "mailgun", "ses", "email-templates", "transactional-email", "bulk-email", "email-verification", "dkim", "spf", "dmarc"]
+            }
+          ]
+        },
+        {
+          "id": "productivity-tools",
+          "label": "Productivity Tools",
+          "leaves": [
+            {
+              "id": "project-management",
+              "label": "Project Management",
+              "tags": ["notion", "linear", "jira", "asana", "monday", "trello", "clickup", "github-issues", "shortcut", "basecamp", "project-management", "sprint", "backlog", "ticket"]
+            }
+          ]
+        },
+        {
+          "id": "crm-marketing",
+          "label": "CRM & Marketing",
+          "leaves": [
+            {
+              "id": "crm",
+              "label": "CRM",
+              "tags": ["hubspot", "salesforce", "pipedrive", "close", "crm", "lead", "contact", "deal", "pipeline-crm"]
+            },
+            {
+              "id": "marketing-analytics",
+              "label": "Marketing & Analytics",
+              "tags": ["mailchimp", "klaviyo", "marketo", "segment", "mixpanel", "amplitude", "intercom", "customer-io", "analytics", "event-tracking", "funnel", "conversion", "retention"]
+            }
+          ]
+        },
+        {
+          "id": "workflow-automation",
+          "label": "Workflow Automation",
+          "leaves": [
+            {
+              "id": "automation-platforms",
+              "label": "Automation Platforms",
+              "tags": ["zapier", "make", "n8n", "workflow-automation", "no-code", "triggers", "actions", "webhooks-automation", "integration-platform"]
+            },
+            {
+              "id": "job-queues",
+              "label": "Job Queues & Background Jobs",
+              "tags": ["temporal", "inngest", "trigger-dev", "bullmq", "agenda", "sidekiq", "celery-queue", "job-queue", "background-jobs", "cron-jobs", "worker", "retry", "durability"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "identity-security",
+      "label": "Identity & Security",
+      "subcategories": [
+        {
+          "id": "authentication",
+          "label": "Authentication",
+          "leaves": [
+            {
+              "id": "auth-frameworks",
+              "label": "Auth Frameworks",
+              "tags": ["nextauth", "clerk", "lucia", "better-auth", "authjs", "passport", "firebase-auth", "supabase-auth", "magic-link", "otp", "passwordless", "email-password", "social-login", "session-management"]
+            },
+            {
+              "id": "managed-idp",
+              "label": "Managed Identity Providers",
+              "tags": ["auth0", "okta", "cognito", "entra", "ping", "keycloak", "sso", "saml", "oidc", "enterprise-auth", "active-directory", "ldap", "scim", "mfa", "webauthn"]
+            }
+          ]
+        },
+        {
+          "id": "authorization",
+          "label": "Authorization",
+          "leaves": [
+            {
+              "id": "rbac-abac",
+              "label": "Role & Policy Engines",
+              "tags": ["casbin", "opa", "permit-io", "cerbos", "zanzibar", "roles", "permissions", "policy-engine", "row-level", "attribute-based", "rebac", "fga", "fine-grained-authorization"]
+            },
+            {
+              "id": "oauth-tokens",
+              "label": "OAuth & Tokens",
+              "tags": ["oauth2", "scopes", "jwt", "token-introspection", "pkce", "refresh-token", "access-token", "token-rotation", "jwe", "jwks", "authorization-code-flow"]
+            }
+          ]
+        },
+        {
+          "id": "secrets-compliance",
+          "label": "Secrets & Compliance",
+          "leaves": [
+            {
+              "id": "secrets-mgmt",
+              "label": "Secrets Management",
+              "tags": ["hashicorp-vault", "aws-secrets", "doppler", "infisical", "env-vars", "rotation", "encryption-at-rest", "kms", "secret-scanning", "1password-secrets", "chamber"]
+            },
+            {
+              "id": "security-scanning",
+              "label": "Security Scanning",
+              "tags": ["snyk", "dependabot", "trivy", "semgrep", "sonarqube", "cve", "sbom", "sast", "dast", "owasp", "dependency-audit", "vulnerability-scanning", "license-compliance"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "observability",
+      "label": "Observability & Monitoring",
+      "subcategories": [
+        {
+          "id": "error-tracking",
+          "label": "Error Tracking",
+          "leaves": [
+            {
+              "id": "error-monitoring",
+              "label": "Error Monitoring",
+              "tags": ["sentry", "bugsnag", "rollbar", "honeybadger", "raygun", "exceptions", "stack-traces", "release-tracking", "sourcemaps", "session-replay", "breadcrumbs", "issue-grouping"]
+            }
+          ]
+        },
+        {
+          "id": "apm-metrics",
+          "label": "APM & Metrics",
+          "leaves": [
+            {
+              "id": "apm",
+              "label": "Application Performance Monitoring",
+              "tags": ["datadog", "newrelic", "dynatrace", "elastic-apm", "honeycomb", "opentelemetry", "prometheus", "grafana", "traces", "spans", "distributed-tracing", "p99", "latency", "apm", "metrics"]
+            }
+          ]
+        },
+        {
+          "id": "logging",
+          "label": "Logging",
+          "leaves": [
+            {
+              "id": "log-aggregation",
+              "label": "Log Aggregation",
+              "tags": ["logfire", "loki", "cloudwatch-logs", "papertrail", "logtail", "structured-logging", "log-aggregation", "logfmt", "json-logs", "pino", "winston", "log-levels", "correlation-id"]
+            }
+          ]
+        },
+        {
+          "id": "uptime-synthetic",
+          "label": "Uptime & Synthetic Monitoring",
+          "leaves": [
+            {
+              "id": "uptime",
+              "label": "Uptime & Incident Management",
+              "tags": ["betterstack", "pingdom", "checkly", "uptime-robot", "synthetic-monitoring", "status-page", "incident-management", "on-call", "pagerduty", "opsgenie", "alert-routing"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "testing",
+      "label": "Testing & Quality",
+      "subcategories": [
+        {
+          "id": "unit-integration",
+          "label": "Unit & Integration Testing",
+          "leaves": [
+            {
+              "id": "js-testing",
+              "label": "JavaScript Testing",
+              "tags": ["jest", "vitest", "mocha", "jasmine", "ava", "node-test", "mocking", "spies", "coverage", "istanbul", "c8", "test-utils", "testing-library", "fake-timers", "snapshot"]
+            },
+            {
+              "id": "other-lang-testing",
+              "label": "Other Language Testing",
+              "tags": ["pytest", "rspec", "junit", "go-test", "cargo-test", "phpunit", "unittest", "minitest", "nunit", "xunit", "hypothesis", "property-based-testing", "fixtures"]
+            }
+          ]
+        },
+        {
+          "id": "e2e-browser",
+          "label": "E2E & Browser Testing",
+          "leaves": [
+            {
+              "id": "e2e-frameworks",
+              "label": "E2E Frameworks",
+              "tags": ["playwright", "cypress", "puppeteer", "webdriverio", "nightwatch", "testcafe", "e2e", "browser-testing", "page-object-model", "test-isolation", "parallel-tests"]
+            },
+            {
+              "id": "visual-testing",
+              "label": "Visual Regression",
+              "tags": ["percy", "chromatic", "applitools", "visual-regression", "screenshot-diff", "storybook-testing", "pixel-diff", "baseline", "visual-snapshot"]
+            }
+          ]
+        },
+        {
+          "id": "api-load",
+          "label": "API & Load Testing",
+          "leaves": [
+            {
+              "id": "api-testing",
+              "label": "API Testing",
+              "tags": ["postman", "httpx", "supertest", "rest-assured", "hurl", "contract-testing", "pact", "openapi-testing", "api-mocking", "wiremock", "prism"]
+            },
+            {
+              "id": "performance-testing",
+              "label": "Load & Performance Testing",
+              "tags": ["k6", "artillery", "locust", "jmeter", "gatling", "load-testing", "stress-testing", "benchmarking", "throughput", "rps", "vus", "p95", "slo"]
+            }
+          ]
+        },
+        {
+          "id": "code-quality",
+          "label": "Code Quality",
+          "leaves": [
+            {
+              "id": "linting",
+              "label": "Linting & Formatting",
+              "tags": ["eslint", "biome", "pylint", "ruff", "golangci-lint", "clippy", "rubocop", "prettier", "formatting", "stylelint", "markdownlint", "editorconfig", "oxc"]
+            },
+            {
+              "id": "type-checking",
+              "label": "Type Checking",
+              "tags": ["typescript", "pyright", "mypy", "flow", "tsc", "strict-mode", "type-safety", "inference", "generics", "type-narrowing", "zod", "valibot", "io-ts"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-engineering",
+      "label": "Data Engineering",
+      "subcategories": [
+        {
+          "id": "pipeline-orchestration",
+          "label": "Pipeline Orchestration",
+          "leaves": [
+            {
+              "id": "workflow-engines",
+              "label": "Workflow Engines",
+              "tags": ["airflow", "prefect", "dagster", "luigi", "argo-workflows", "mage", "hamilton", "task-graph", "dag", "schedule", "backfill", "sensors", "operators", "hooks-airflow"]
+            }
+          ]
+        },
+        {
+          "id": "transformation",
+          "label": "Data Transformation",
+          "leaves": [
+            {
+              "id": "sql-transform",
+              "label": "SQL-Based Transformation",
+              "tags": ["dbt", "sqlmesh", "dataform", "sql-transform", "data-modeling", "lineage", "testing-data-quality", "marts", "staging", "sources", "seeds"]
+            },
+            {
+              "id": "code-transform",
+              "label": "Code-Based Transformation",
+              "tags": ["spark", "dask", "polars", "pandas", "ray", "pyspark", "map-reduce", "partitioned-jobs", "large-dataset", "dataframe", "etl-code"]
+            }
+          ]
+        },
+        {
+          "id": "streaming",
+          "label": "Streaming",
+          "leaves": [
+            {
+              "id": "stream-processing",
+              "label": "Stream Processing",
+              "tags": ["kafka", "flink", "spark-streaming", "kinesis", "pubsub", "event-driven", "cdc", "change-data-capture", "debezium", "kafka-connect", "kafka-streams", "event-sourcing", "consumer-group"]
+            }
+          ]
+        },
+        {
+          "id": "scraping-ingestion",
+          "label": "Scraping & Ingestion",
+          "leaves": [
+            {
+              "id": "web-scraping",
+              "label": "Web Scraping",
+              "tags": ["scrapy", "crawl4ai", "playwright-scraping", "beautifulsoup", "apify", "bright-data", "web-scraping", "rss", "firehose", "spider", "crawler", "headless-browser", "anti-bot"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "payments",
+      "label": "Payments & Commerce",
+      "subcategories": [
+        {
+          "id": "checkout",
+          "label": "Checkout & Collection",
+          "leaves": [
+            {
+              "id": "payment-forms",
+              "label": "Payment Forms & Links",
+              "tags": ["stripe-checkout", "stripe-elements", "payment-links", "payment-intents", "card-form", "apple-pay", "google-pay", "link", "buy-now-pay-later", "bnpl", "embedded-checkout"]
+            }
+          ]
+        },
+        {
+          "id": "subscriptions",
+          "label": "Subscriptions & Billing",
+          "leaves": [
+            {
+              "id": "recurring-billing",
+              "label": "Recurring Billing",
+              "tags": ["stripe-billing", "recurring", "metered", "usage-based", "dunning", "proration", "trial", "cancel-at-period-end", "billing-portal", "subscription-schedule", "pause-subscription"]
+            }
+          ]
+        },
+        {
+          "id": "payment-infrastructure",
+          "label": "Payment Infrastructure",
+          "leaves": [
+            {
+              "id": "platform-payments",
+              "label": "Platform & Marketplace Payments",
+              "tags": ["stripe-connect", "platform-payments", "marketplace", "payouts", "transfers", "escrow", "split-payments", "connected-accounts"]
+            },
+            {
+              "id": "alternative-processors",
+              "label": "Alternative Processors",
+              "tags": ["paypal", "braintree", "adyen", "square", "paddle", "lemon-squeezy", "merchant-account", "crypto-payments", "coinbase-commerce", "tax-calculation", "invoicing"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "documentation",
+      "label": "Documentation",
+      "subcategories": [
+        {
+          "id": "api-reference",
+          "label": "API Reference",
+          "leaves": [
+            {
+              "id": "api-docs",
+              "label": "API Docs & Portals",
+              "tags": ["openapi", "swagger", "scalar", "redoc", "readme-io", "mintlify", "docusaurus-api", "stoplight", "postman-docs", "openapi-spec", "api-portal", "developer-portal"]
+            }
+          ]
+        },
+        {
+          "id": "code-docs",
+          "label": "Code Documentation",
+          "leaves": [
+            {
+              "id": "auto-docs",
+              "label": "Auto-Generated Docs",
+              "tags": ["typedoc", "jsdoc", "pdoc", "rustdoc", "godoc", "docstrings", "inline-docs", "auto-generated", "sphinx", "pydoc", "javadoc", "doxygen"]
+            }
+          ]
+        },
+        {
+          "id": "knowledge-bases",
+          "label": "Knowledge Bases & Sites",
+          "leaves": [
+            {
+              "id": "doc-sites",
+              "label": "Documentation Sites",
+              "tags": ["gitbook", "confluence", "notion-docs", "docusaurus", "nextra", "starlight", "vitepress", "wiki", "changelog", "readme", "mkdocs", "docsify", "bookstack"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
