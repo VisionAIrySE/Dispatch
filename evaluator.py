@@ -577,7 +577,7 @@ Rank these tools for this {task_type} task."""
             max_tokens=600,
         )
         if not text:
-            return {"all": [], "top_pick": None}
+            return {"all": [], "by_type": {}, "top_pick": None}
 
         parsed = json.loads(text)
         all_tools = parsed.get("all", [])
