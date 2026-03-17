@@ -14,9 +14,13 @@
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code-orange" alt="Works with Claude Code">
 </p>
 
-**Two Claude Code hooks: one that proactively surfaces the best plugin, skill, or MCP for your current task — and one that intercepts tool calls before Claude proceeds with a weaker choice.**
+**You don't know what you don't know. Neither does Claude Code.**
 
-Claude Code has hundreds of plugins and marketplace skills. Most sessions you use the same handful and forget the rest exist. Dispatch watches your work in real time. When you shift to a new task, it proactively surfaces grouped tool recommendations directly in your session. When Claude reaches for a tool, it checks whether something better exists — and blocks if it finds one.
+10,000+ tools exist for Claude Code across plugins, skills, and MCP servers. You use the same handful every session. Claude picks from defaults. The best tool for what you're actually building right now — you've probably never heard of it.
+
+Dispatch fixes this two ways: it proactively surfaces the right tools when your task shifts, and intercepts when Claude reaches for a weaker one.
+
+> 10,000 tools out there for Claude Code. Are you using the best ones?
 
 ---
 
