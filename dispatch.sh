@@ -307,10 +307,11 @@ except Exception:
     fi
 
     # Any other non-200 (403, 500, HTML error pages, etc.) — fall through to BYOK
-    if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
-        CLASSIFICATION=""
-    else
+    # Also treat 000 (curl failure/timeout) as no valid response
+    if [ "$HTTP_CODE" = "200" ]; then
         CLASSIFICATION="$HTTP_BODY"
+    else
+        CLASSIFICATION=""
     fi
 else
     # ── BYOK mode ─────────────────────────────────────────────────────────
