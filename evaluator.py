@@ -521,8 +521,8 @@ def recommend_tools(
     Returns {"all": [...], "top_pick": {...} or None}
     """
     SCORE_FLOOR = 55
-    MAX_PER_TYPE = 2
-    MAX_TOTAL = 5
+    MAX_PER_TYPE = 3
+    MAX_TOTAL = 9
 
     try:
         # 1. Fetch candidates
@@ -585,7 +585,7 @@ Rank these tools for this {task_type} task."""
         # 4. Apply score floor (safe cast: handle float scores)
         all_tools = [t for t in all_tools if int(float(t.get("score", 0))) >= SCORE_FLOOR]
         if not all_tools:
-            return {"all": [], "top_pick": None}
+            return {"all": [], "by_type": {}, "top_pick": None}
 
         # Capture top_pick before preferred_type reordering
         # (top_pick should always be globally highest-scored, not preferred_type first)
@@ -625,8 +625,15 @@ Rank these tools for this {task_type} task."""
             if "@" in name and "/" in name and "install_url" not in item:
                 item["install_url"] = f"https://github.com/{name.split('@')[0]}"
 
+        # Group by tool type for sectioned display
+        by_type: dict = {"plugin": [], "skill": [], "mcp": []}
+        for t in all_tools:
+            ttype = _type_of(t.get("name", ""))
+            if ttype in by_type:
+                by_type[ttype].append(t)
+
         top_pick = best_by_score
-        return {"all": all_tools, "top_pick": top_pick}
+        return {"all": all_tools, "by_type": by_type, "top_pick": top_pick}
 
     except Exception:
-        return {"all": [], "top_pick": None}
+        return {"all": [], "by_type": {}, "top_pick": None}

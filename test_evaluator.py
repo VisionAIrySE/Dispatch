@@ -717,7 +717,7 @@ class TestRecommendTools(unittest.TestCase):
         with patch("evaluator.get_client", return_value=mock_client), \
              patch("evaluator.search_by_category", return_value=[]):
             result = recommend_tools("flutter-building", category_id="mobile")
-        assert result == {"all": [], "top_pick": None}
+        assert result == {"all": [], "by_type": {}, "top_pick": None}
 
     def test_top_pick_is_highest_scored(self):
         from evaluator import recommend_tools
@@ -752,7 +752,7 @@ class TestRecommendTools(unittest.TestCase):
         mcp_idx = names.index("mcp:tool-mcp")
         assert mcp_idx == 0
 
-    def test_caps_at_two_per_type_max_five_total(self):
+    def test_caps_at_three_per_type_max_nine_total(self):
         from evaluator import recommend_tools
         from unittest.mock import patch, MagicMock
         mock_client = MagicMock()
@@ -770,11 +770,37 @@ class TestRecommendTools(unittest.TestCase):
         with patch("evaluator.get_client", return_value=mock_client), \
              patch("evaluator.search_by_category", return_value=[]):
             result = recommend_tools("flutter-building", category_id="mobile")
-        assert len(result["all"]) <= 5
+        assert len(result["all"]) <= 9
         skill_count = sum(1 for t in result["all"] if not t["name"].startswith("mcp:") and not t["name"].startswith("plugin:"))
         mcp_count = sum(1 for t in result["all"] if t["name"].startswith("mcp:"))
-        assert skill_count <= 2
-        assert mcp_count <= 2
+        assert skill_count <= 3
+        assert mcp_count <= 3
+
+    def test_by_type_grouping_in_recommend_tools(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.return_value = json.dumps({
+            "all": [
+                {"name": "skill-a", "score": 90, "reason": "A."},
+                {"name": "skill-b", "score": 88, "reason": "B."},
+                {"name": "mcp:mcp-a", "score": 80, "reason": "C."},
+                {"name": "plugin:anthropic:p-a", "score": 70, "reason": "D."},
+            ]
+        })
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[]):
+            result = recommend_tools("flutter-building", category_id="mobile")
+        # Verify by_type key exists and is a dict with three sections
+        assert "by_type" in result
+        assert isinstance(result["by_type"], dict)
+        assert "skill" in result["by_type"]
+        assert "mcp" in result["by_type"]
+        assert "plugin" in result["by_type"]
+        # Verify tools are correctly grouped
+        assert len(result["by_type"]["skill"]) == 2
+        assert len(result["by_type"]["mcp"]) == 1
+        assert len(result["by_type"]["plugin"]) == 1
 
 
 if __name__ == '__main__':
