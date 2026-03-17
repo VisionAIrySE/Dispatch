@@ -562,7 +562,7 @@ except Exception:
     print('')
 " "$SKILL_ROUTER_DIR" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$PREFERRED_TOOL_TYPE" 2>/dev/null || echo "")
 
-    if [ -n "$STAGE3_OUTPUT" ] && [ "$STAGE3_OUTPUT" != "" ]; then
+    if [ -n "$STAGE3_OUTPUT" ]; then
         echo "$STAGE3_OUTPUT"
         python3 -c "
 import sys
