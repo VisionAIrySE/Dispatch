@@ -206,14 +206,29 @@ if [ -n "$DISPATCH_TOKEN" ]; then
     # Hosted path
     python3 -c "
 import json, sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import STATE_FILE
+try:
+    import json as _j
+    cwd = _j.load(open(STATE_FILE)).get('last_cwd', '')
+except Exception:
+    cwd = ''
+stack_profile = {}
+if cwd:
+    try:
+        from stack_scanner import get_stack_profile
+        stack_profile = get_stack_profile(cwd) or {}
+    except Exception:
+        pass
 print(json.dumps({
-    'task_type': sys.argv[1],
-    'context_snippet': sys.argv[2],
-    'cc_tool': sys.argv[3],
-    'category_id': sys.argv[4],
-    'cc_tool_type': sys.argv[5],
+    'task_type': sys.argv[2],
+    'context_snippet': sys.argv[3],
+    'cc_tool': sys.argv[4],
+    'category_id': sys.argv[5],
+    'cc_tool_type': sys.argv[6],
+    'stack_profile': stack_profile,
 }))
-" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" > "$RANK_TMP" 2>/dev/null
+" "$SKILL_ROUTER_DIR" "$TASK_TYPE" "$CONTEXT_SNIPPET" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" > "$RANK_TMP" 2>/dev/null
 
     RANK_HTTP=$(curl -s -w "\n%{http_code}" \
         -X POST "$DISPATCH_ENDPOINT/rank" \
@@ -233,7 +248,19 @@ print(json.dumps({
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6])))
+from interceptor import STATE_FILE
+try:
+    cwd = json.load(open(STATE_FILE)).get('last_cwd', '')
+except Exception:
+    cwd = ''
+stack_profile = {}
+if cwd:
+    try:
+        from stack_scanner import get_stack_profile
+        stack_profile = get_stack_profile(cwd) or {}
+    except Exception:
+        pass
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile)))
 " "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
     fi
 else
@@ -242,7 +269,19 @@ else
 import sys, json
 sys.path.insert(0, sys.argv[3])
 from evaluator import build_recommendation_list
-print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6])))
+from interceptor import STATE_FILE
+try:
+    cwd = json.load(open(STATE_FILE)).get('last_cwd', '')
+except Exception:
+    cwd = ''
+stack_profile = {}
+if cwd:
+    try:
+        from stack_scanner import get_stack_profile
+        stack_profile = get_stack_profile(cwd) or {}
+    except Exception:
+        pass
+print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile)))
 " "$TASK_TYPE" "$CONTEXT_SNIPPET" "$SKILL_ROUTER_DIR" "$CC_TOOL" "$CATEGORY" "$CC_TOOL_TYPE" 2>/dev/null || echo '{"all":[],"cc_score":0}')
 fi
 
