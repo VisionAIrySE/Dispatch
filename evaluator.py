@@ -84,6 +84,35 @@ BAD: "Firebase support for agents." (repeats tool name, adds nothing)
 """
 
 
+RECOMMEND_SYSTEM_PROMPT = """You are a tool recommendation engine for Claude Code.
+Given a detected task type and context, rank available marketplace tools by relevance.
+
+Respond with ONLY valid JSON:
+{
+  "all": [
+    {"name": "owner/repo@skill-name", "score": 88,
+     "install_cmd": "npx skills add owner/repo@skill-name -y",
+     "reason": "one specific sentence grounded in the current task"}
+  ]
+}
+
+Rules:
+- all: marketplace tools sorted by relevance score (0-100) descending
+- Only include tools with score >= 40 (caller applies final floor)
+- Limit to top 8 tools across all types (skills, MCPs, plugins) before caller trims
+- install_cmd: use provided hint exactly — do NOT fabricate
+  - skills (format "owner/repo@name"): install_cmd = "npx skills add owner/repo@name -y"
+  - MCPs (id starts with "mcp:"): omit install_cmd entirely
+  - plugins (id starts with "plugin:"): use provided install_cmd if present, else omit
+- Write specific reasons grounded in what the developer is actually doing
+- If no tools are relevant, return {"all": []}
+
+Reason quality:
+GOOD: "Adds widget testing patterns directly applicable to the rendering crash you are diagnosing."
+BAD: "Useful for Flutter." (too generic)
+"""
+
+
 def strip_ansi(text: str) -> str:
     """Strip ANSI escape codes from text."""
     return re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', text)
@@ -474,3 +503,126 @@ def build_recommendation_list(
         "top_pick": top_pick,
         "cc_score": cc_score,
     }
+
+
+def recommend_tools(
+    task_type: str,
+    context_snippet: str = None,
+    category_id: str = None,
+    stack_profile: dict = None,
+    preferred_type: str = None,
+    model: str = None,
+) -> dict:
+    """Proactive recommendation — no cc_tool comparison.
+
+    Searches all three tool types (skills, MCPs, plugins) for the given category,
+    ranks by task relevance, applies diversity caps and score floor.
+
+    Returns {"all": [...], "top_pick": {...} or None}
+    """
+    SCORE_FLOOR = 55
+    MAX_PER_TYPE = 2
+    MAX_TOTAL = 5
+
+    try:
+        # 1. Fetch candidates
+        if category_id and category_id != "unknown":
+            candidates = search_by_category(category_id, limit=15)
+        else:
+            candidates = search_registry(task_type, limit=10)
+
+        # 2. Filter already-installed MCPs
+        installed_mcps: set = set()
+        if stack_profile:
+            for srv in stack_profile.get("mcp_servers", []):
+                installed_mcps.add(srv.lower())
+        if installed_mcps:
+            from interceptor import normalize_tool_name_for_matching
+            candidates = [
+                c for c in candidates
+                if normalize_tool_name_for_matching(c.get("id", "")) not in installed_mcps
+            ]
+
+        # 3. Build stack context hint
+        stack_hint = ""
+        if stack_profile:
+            terms = stack_profile.get("languages", []) + stack_profile.get("frameworks", [])
+            if terms:
+                stack_hint = "\nDeveloper stack: " + ", ".join(terms[:6])
+
+        context_line = f"\nTask context: \"{(context_snippet or '')[:200]}\""
+        if stack_hint:
+            context_line += stack_hint
+
+        registry_formatted = [
+            {"id": c["id"], "desc": c.get("description", "")[:200]}
+            for c in candidates
+        ]
+
+        user_content = f"""Task type: {task_type}{context_line}
+
+Available tools:
+{json.dumps(registry_formatted, indent=2)}
+
+Rank these tools for this {task_type} task."""
+
+        config = load_config()
+        llm = get_client(config)
+        effective_model = model or ranker_model(config) or "claude-haiku-4-5-20251001"
+
+        text = llm.complete(
+            system=RECOMMEND_SYSTEM_PROMPT,
+            user=user_content,
+            model=effective_model,
+            max_tokens=600,
+        )
+        if not text:
+            return {"all": [], "top_pick": None}
+
+        parsed = json.loads(text)
+        all_tools = parsed.get("all", [])
+
+        # 4. Apply score floor
+        all_tools = [t for t in all_tools if int(t.get("score", 0)) >= SCORE_FLOOR]
+        if not all_tools:
+            return {"all": [], "top_pick": None}
+
+        # 5. Sort by preferred_type first, then score descending
+        def _type_of(name: str) -> str:
+            if name.startswith("plugin:"):
+                return "plugin"
+            if name.startswith("mcp:"):
+                return "mcp"
+            return "skill"
+
+        if preferred_type:
+            all_tools.sort(key=lambda t: (
+                0 if _type_of(t.get("name", "")) == preferred_type else 1,
+                -t.get("score", 0)
+            ))
+        else:
+            all_tools.sort(key=lambda t: -t.get("score", 0))
+
+        # 6. Diversity cap: max MAX_PER_TYPE per type, MAX_TOTAL total
+        type_counts: dict = {}
+        trimmed = []
+        for t in all_tools:
+            ttype = _type_of(t.get("name", ""))
+            if type_counts.get(ttype, 0) < MAX_PER_TYPE:
+                type_counts[ttype] = type_counts.get(ttype, 0) + 1
+                trimmed.append(t)
+            if len(trimmed) >= MAX_TOTAL:
+                break
+        all_tools = trimmed
+
+        # 7. Derive install_url for skills
+        for item in all_tools:
+            name = item.get("name", "")
+            if "@" in name and "/" in name and "install_url" not in item:
+                item["install_url"] = f"https://github.com/{name.split('@')[0]}"
+
+        top_pick = all_tools[0] if all_tools else None
+        return {"all": all_tools, "top_pick": top_pick}
+
+    except Exception:
+        return {"all": [], "top_pick": None}

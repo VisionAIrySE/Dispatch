@@ -674,5 +674,108 @@ class TestTwoTierRanking(unittest.TestCase):
         assert len(result["all"]) == 2
 
 
+class TestRecommendTools(unittest.TestCase):
+    def test_returns_dict_with_all_and_top_pick_keys(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.return_value = json.dumps({
+            "all": [
+                {"name": "VisionAIrySE/flutter@flutter-dev", "score": 82,
+                 "reason": "Flutter dev skill.", "install_cmd": "npx skills add VisionAIrySE/flutter@flutter-dev -y"}
+            ]
+        })
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[
+                 {"id": "VisionAIrySE/flutter@flutter-dev", "description": "Flutter dev skill."}
+             ]):
+            result = recommend_tools("flutter-building", category_id="mobile")
+        assert "all" in result
+        assert "top_pick" in result
+
+    def test_filters_tools_below_score_floor(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.return_value = json.dumps({
+            "all": [
+                {"name": "tool-a", "score": 80, "reason": "Good."},
+                {"name": "tool-b", "score": 40, "reason": "Below floor."},
+            ]
+        })
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[]):
+            result = recommend_tools("flutter-building", category_id="mobile")
+        scores = [t["score"] for t in result["all"]]
+        assert all(s >= 55 for s in scores)
+
+    def test_returns_empty_on_llm_failure(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.side_effect = Exception("LLM down")
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[]):
+            result = recommend_tools("flutter-building", category_id="mobile")
+        assert result == {"all": [], "top_pick": None}
+
+    def test_top_pick_is_highest_scored(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.return_value = json.dumps({
+            "all": [
+                {"name": "tool-a", "score": 90, "reason": "Best."},
+                {"name": "tool-b", "score": 75, "reason": "Good."},
+            ]
+        })
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[]):
+            result = recommend_tools("flutter-building", category_id="mobile")
+        assert result["top_pick"]["name"] == "tool-a"
+
+    def test_preferred_type_floats_to_front(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.return_value = json.dumps({
+            "all": [
+                {"name": "tool-skill", "score": 82, "reason": "Skill."},
+                {"name": "plugin:anthropic:tool-plugin", "score": 88, "reason": "Plugin."},
+                {"name": "mcp:tool-mcp", "score": 77, "reason": "MCP."},
+            ]
+        })
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[]):
+            result = recommend_tools("flutter-building", category_id="mobile", preferred_type="mcp")
+        names = [t["name"] for t in result["all"]]
+        mcp_idx = names.index("mcp:tool-mcp")
+        assert mcp_idx == 0
+
+    def test_caps_at_two_per_type_max_five_total(self):
+        from evaluator import recommend_tools
+        from unittest.mock import patch, MagicMock
+        mock_client = MagicMock()
+        mock_client.complete.return_value = json.dumps({
+            "all": [
+                {"name": "skill-a", "score": 90, "reason": "A."},
+                {"name": "skill-b", "score": 88, "reason": "B."},
+                {"name": "skill-c", "score": 85, "reason": "C."},
+                {"name": "mcp:mcp-a", "score": 80, "reason": "D."},
+                {"name": "mcp:mcp-b", "score": 78, "reason": "E."},
+                {"name": "mcp:mcp-c", "score": 75, "reason": "F."},
+                {"name": "plugin:anthropic:p-a", "score": 70, "reason": "G."},
+            ]
+        })
+        with patch("evaluator.get_client", return_value=mock_client), \
+             patch("evaluator.search_by_category", return_value=[]):
+            result = recommend_tools("flutter-building", category_id="mobile")
+        assert len(result["all"]) <= 5
+        skill_count = sum(1 for t in result["all"] if not t["name"].startswith("mcp:") and not t["name"].startswith("plugin:"))
+        mcp_count = sum(1 for t in result["all"] if t["name"].startswith("mcp:"))
+        assert skill_count <= 2
+        assert mcp_count <= 2
+
+
 if __name__ == '__main__':
     unittest.main()
