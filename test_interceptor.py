@@ -500,5 +500,52 @@ class TestLastCcToolType(unittest.TestCase):
         assert result == ""
 
 
+class TestLastRecommendedCategory(unittest.TestCase):
+    def test_returns_empty_string_when_no_state(self):
+        from interceptor import get_last_recommended_category
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            tmp = f.name
+        os.unlink(tmp)
+        result = get_last_recommended_category(state_file=tmp)
+        assert result == ""
+
+    def test_returns_category_after_write(self):
+        from interceptor import get_last_recommended_category, write_last_recommended_category
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            tmp = f.name
+            json.dump({}, f)
+        try:
+            write_last_recommended_category("mobile", state_file=tmp)
+            result = get_last_recommended_category(state_file=tmp)
+            assert result == "mobile"
+        finally:
+            os.unlink(tmp)
+
+    def test_write_preserves_existing_state_fields(self):
+        from interceptor import write_last_recommended_category
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            tmp = f.name
+            json.dump({"last_task_type": "flutter-building"}, f)
+        try:
+            write_last_recommended_category("mobile", state_file=tmp)
+            with open(tmp) as f:
+                d = json.load(f)
+            assert d["last_task_type"] == "flutter-building"
+            assert d["last_recommended_category"] == "mobile"
+        finally:
+            os.unlink(tmp)
+
+    def test_get_returns_empty_on_corrupt_file(self):
+        from interceptor import get_last_recommended_category
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            tmp = f.name
+            f.write("NOT JSON")
+        try:
+            result = get_last_recommended_category(state_file=tmp)
+            assert result == ""
+        finally:
+            os.unlink(tmp)
+
+
 if __name__ == "__main__":
     unittest.main()

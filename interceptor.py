@@ -273,6 +273,31 @@ def get_last_cc_tool_type(state_file: str = None) -> str:
         return ""
 
 
+def get_last_recommended_category(state_file: str = None) -> str:
+    """Return the category last shown in a proactive recommendation, or '' if unset."""
+    path = state_file or STATE_FILE
+    try:
+        with open(path) as f:
+            return json.load(f).get("last_recommended_category", "")
+    except Exception:
+        return ""
+
+
+def write_last_recommended_category(category: str, state_file: str = None) -> None:
+    """Persist the category we just recommended so we don't re-fire for the same topic."""
+    path = state_file or STATE_FILE
+    try:
+        try:
+            with open(path) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+        state["last_recommended_category"] = category
+        _atomic_write(path, state)
+    except Exception:
+        pass
+
+
 def check_conversion(installed_names: list, state_file: str = None) -> bool:
     """Return True if the last suggested tool matches any name in installed_names.
 
