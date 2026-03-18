@@ -171,7 +171,7 @@ Shows:
 |---|---|---|---|---|
 | Proactive recommendations | ✓ | ✓ | ✓ | ✓ |
 | Interceptions/day | 8 | Unlimited | Unlimited | Unlimited |
-| Ranking model | Haiku | Sonnet | Sonnet | Haiku |
+| Recommendation quality | Good | Best | Best | Configurable* |
 | Catalog sources | 3, live (~2–4s) | 6, pre-ranked (<200ms) | 6, pre-ranked (<200ms) | 3, live (~2–4s) |
 | Network intelligence | — | ✓ | ✓ | — |
 | Dashboard | — | ✓ | ✓ | — |
@@ -180,7 +180,7 @@ Shows:
 
 **Founding Dispatcher:** First 300 paying users lock in $6/month for life. Once the founding tier fills, new signups pay standard $10/month.
 
-*BYOK is for developers in air-gapped or restricted environments who cannot send any data to external services. If that's not you, [start with Free](https://dispatch.visionairy.biz/auth/github) — it's easier, smarter, and actually free.
+*BYOK is for developers in air-gapped or restricted environments who cannot send any data to external services. BYOK ranking quality depends on your model — set `OPENROUTER_API_KEY` for free inference or `ANTHROPIC_API_KEY` for Haiku. Override with any model in `~/.claude/dispatch/config.json`. If that's not you, [start with Free](https://dispatch.visionairy.biz/auth/github) — it's easier, smarter, and actually free.
 
 ---
 

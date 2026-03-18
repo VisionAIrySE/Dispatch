@@ -138,13 +138,15 @@ Most developers don't need this. If you're not in a restricted environment, [sta
 |---|---|---|---|
 | **Proactive recommendations** | ✓ | ✓ | ✓ |
 | **Interceptions/day** | 8 | Unlimited | Unlimited |
-| **Ranking model** | Haiku | Sonnet | Haiku (your API cost) |
+| **Recommendation quality** | Good | Best | Configurable* |
 | **Catalog sources** | 3, live search (~2–4s) | 6, pre-ranked (<200ms) | 3, live search (~2–4s) |
 | **Network intelligence** | — | ✓ | — |
 | **Dashboard** | — | ✓ | — |
 | **Cost** | Free | $10/month | API costs |
 | **Data sharing** | Task labels only | Task labels only | None |
 | **Setup** | GitHub login, 30s | GitHub login, 30s | Manual API key |
+
+*BYOK ranking quality depends on your model. Set `OPENROUTER_API_KEY` for free inference or `ANTHROPIC_API_KEY` for Haiku. Override with any model in `~/.claude/dispatch/config.json`.
 
 ---
 
