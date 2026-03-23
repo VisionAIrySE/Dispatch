@@ -13,6 +13,16 @@
 
 set -uo pipefail
 
+# Provenance logging function
+log_decision() {
+    local decision="${1:-}"
+    local confidence="${2:-}"
+    local rules="${3:-}"
+    echo "[PROVENANCE] $(date -Iseconds) preuse_hook.sh: $decision (confidence=$confidence, rules=$rules)" >&2
+}
+
+log_decision "Hook initialization" 0.95 "script-start"
+
 read -r -t 5 HOOK_INPUT || true
 SKILL_ROUTER_DIR="${HOME}/.claude/dispatch"
 CONFIG_FILE="$SKILL_ROUTER_DIR/config.json"

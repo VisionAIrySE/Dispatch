@@ -18,7 +18,7 @@
 
 10,000+ tools exist for Claude Code across plugins, skills, and MCP servers. You use the same handful every session. Claude picks from defaults. The best tool for what you're actually building right now — you've probably never heard of it.
 
-Dispatch fixes this two ways: it proactively surfaces the right tools when your task shifts, and intercepts when Claude reaches for a weaker one.
+Dispatch fixes this two ways: it proactively surfaces the right tools when your task shifts, and intercepts when Claude reaches for a weaker one. All major decisions are logged with `provenance` markers for transparency.
 
 > 10,000 tools out there for Claude Code. Are you using the best ones?
 
