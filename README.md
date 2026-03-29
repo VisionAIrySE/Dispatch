@@ -170,7 +170,7 @@ Bring your own key — OpenRouter or Anthropic. Everything runs on your machine,
 
 - **Dispatch:** fully functional, unlimited interceptions
 - **XF Audit:** Stage 1 bundled (pure AST, zero API cost) — catches broken imports, arity mismatches, syntax errors on every Edit/Write
-- **Stages 2–4:** upgrade prompt fires in session digest when Stage 2 would have been useful — one line, never mid-conversation, never blocking: `◈ XF Audit would have mapped that cascade. tooldispatch.visionairy.biz/pro`
+- **Stages 2–4:** upgrade prompt fires in session digest when Stage 2 would have been useful — one line, never mid-conversation, never blocking: `◈ XF Audit would have mapped that cascade. dispatch.visionairy.biz/pro`
 
 No account needed. Everything runs locally. You lose the catalog network intelligence and the dashboard.
 
@@ -178,7 +178,7 @@ No account needed. Everything runs locally. You lose the catalog network intelli
 
 ### Free — start here
 
-[Sign up with GitHub](https://tooldispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
+[Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
 
 - **Dispatch:** 8 interceptions/day + full proactive recommendations on every task shift
 - **XF Audit:** Stage 1 always-on (bundled), Stages 2–4 tier-blocked with in-context upgrade prompt when Stage 2 events occurred
@@ -191,7 +191,7 @@ No account needed. Everything runs locally. You lose the catalog network intelli
 
 > **Founding offer:** First 300 subscribers lock in **$6/month for life**. After 300, standard rate applies.
 
-[Upgrade at tooldispatch.visionairy.biz/pro](https://tooldispatch.visionairy.biz/pro)
+[Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
 
 - **Dispatch:** unlimited interceptions, Sonnet ranking, pre-ranked catalog
 - **XF Audit:** full Stages 1–4 (Xpansion cascade analysis, concrete repair plan, graduated consent flow, repair log)
@@ -400,7 +400,7 @@ Removes all installed files, hook scripts, and settings.json entries automatical
 
 **BYOK:** Haiku calls go directly from your machine to Anthropic. Nothing passes through our servers.
 
-**Hosted (Free and Pro):** The following data is sent to and stored at tooldispatch.visionairy.biz:
+**Hosted (Free and Pro):** The following data is sent to and stored at dispatch.visionairy.biz:
 
 | Data | Stored? | Notes |
 |------|---------|-------|
@@ -416,7 +416,7 @@ We don't store conversation content. We don't sell individual user data. Aggrega
 
 **Creator outreach:** When the daily catalog crawl finds a skill with install activity but no description, Dispatch may open a GitHub issue on that repo asking the creator to add a description. At most once per repo per 30 days. Issues include a note that the creator can close with no action required.
 
-To delete your account and all stored data, email hello@tooldispatch.visionairy.biz. To stop all data sharing immediately, switch to BYOK mode.
+To delete your account and all stored data, email hello@dispatch.visionairy.biz. To stop all data sharing immediately, switch to BYOK mode.
 
 ---
 
@@ -439,7 +439,7 @@ Two problems define every Claude Code session. The first: the tool ecosystem is 
 
 ToolDispatch covers both sides. Dispatch is the runtime layer that ensures Claude reaches for the best tool. XF Audit is the safety net that ensures the code those tools produce actually connects. One install. Both problems. And it leaves a record of everything it did — so when something goes wrong in production, you can answer: did we catch this?
 
-The hosted version knows something a local install can never know: what tools thousands of other developers actually reached for when they were doing exactly what you're doing right now — and which ones they kept. That signal compounds over time. [Start free.](https://tooldispatch.visionairy.biz/auth/github)
+The hosted version knows something a local install can never know: what tools thousands of other developers actually reached for when they were doing exactly what you're doing right now — and which ones they kept. That signal compounds over time. [Start free.](https://dispatch.visionairy.biz/auth/github)
 
 Built by [Visionairy](https://visionairy.biz). If you're getting serious about AI developer tooling, also check out [Vib8](https://vib8.ai) — AI-powered competitive intelligence for founders.
 
@@ -488,7 +488,7 @@ We eat our own cooking. The tool that ships with ToolDispatch is the tool we use
 
 ## Roadmap
 
-- [x] Hosted endpoint (tooldispatch.visionairy.biz)
+- [x] Hosted endpoint (dispatch.visionairy.biz)
 - [x] PreToolUse interception — blocks on 10+ point gap
 - [x] Category-first routing — 16 MECE categories
 - [x] Pre-ranked catalog — daily cron, signal-scored (installs/stars/forks/freshness)

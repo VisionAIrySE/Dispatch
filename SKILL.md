@@ -25,7 +25,7 @@ metadata:
   author: ToolDispatch
   version: "1.0.0"
   repository: https://github.com/ToolDispatch/Dispatch
-  homepage: https://tooldispatch.visionairy.biz
+  homepage: https://dispatch.visionairy.biz
   install: bash <(curl -fsSL https://raw.githubusercontent.com/ToolDispatch/Dispatch/main/install.sh)
 ---
 
@@ -98,4 +98,4 @@ Auto-detected after 3+ consecutive edits to the same symbol.
 ## Docs
 
 - README: https://github.com/ToolDispatch/Dispatch
-- Platform: https://tooldispatch.visionairy.biz
+- Platform: https://dispatch.visionairy.biz

@@ -3,7 +3,7 @@
 **Updated:** 2026-03-28
 **Version:** v1.0.0
 **Repo:** https://github.com/ToolDispatch/Dispatch
-**Platform:** https://tooldispatch.visionairy.biz
+**Platform:** https://dispatch.visionairy.biz
 
 **Core tagline:** Your Claude Code insurance policy — best tool for the job up front, code that connects before it breaks.
 **Dispatch half:** "best tool for the job up front" | **XF Audit half:** "code that connects before it breaks"
@@ -72,7 +72,7 @@ Install is one command:
 bash <(curl -fsSL https://raw.githubusercontent.com/ToolDispatch/Dispatch/main/install.sh)
 ```
 
-Requires Python 3.8+ and Node.js. Two modes: BYOK (your own Anthropic/OpenRouter key, full dual-layer locally) or Hosted (free token at tooldispatch.visionairy.biz, 8 detections/day free, Pro for unlimited + pre-ranked catalog). 372 tests across 8 modules if you want to read the code before installing.
+Requires Python 3.8+ and Node.js. Two modes: BYOK (your own Anthropic/OpenRouter key, full dual-layer locally) or Hosted (free token at dispatch.visionairy.biz, 8 detections/day free, Pro for unlimited + pre-ranked catalog). 372 tests across 8 modules if you want to read the code before installing.
 
 One more thing worth saying: if you're newer to Claude Code and feel like it's not quite clicking — like the results aren't as good as you hoped — this is often why. Native CC with no tool awareness is Claude reaching for whatever it knows. CC with Dispatch is Claude reaching for the best tool available for what you're actually doing. The difference is significant. You need it today. You'll need it more tomorrow.
 
@@ -334,7 +334,7 @@ The plugin ecosystem is deeper than most Claude Code users know.
 Dispatch makes Claude actually use it — and tells you what exists before Claude has to guess.
 
 ⭐ https://github.com/ToolDispatch/Dispatch
-tooldispatch.visionairy.biz
+dispatch.visionairy.biz
 ```
 
 ---
@@ -486,7 +486,7 @@ Repo: https://github.com/ToolDispatch/Dispatch
 ### Brand Monitoring
 
 - "Dispatch VisionAIrySE"
-- "tooldispatch.visionairy.biz"
+- "dispatch.visionairy.biz"
 - "VisionAIrySE"
 - "Dispatch Claude Code"
 - "skill router Claude"
@@ -650,7 +650,7 @@ Dispatch is a two-hook CC runtime that addresses the tool discovery gap at both 
 ## Links
 
 - GitHub: https://github.com/ToolDispatch/Dispatch
-- Hosted tier: https://tooldispatch.visionairy.biz
+- Hosted tier: https://dispatch.visionairy.biz
 - Catalog sources: skills.sh, Smithery.ai, glama.ai, registry.modelcontextprotocol.io
 ```
 

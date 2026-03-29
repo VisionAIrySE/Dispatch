@@ -28,12 +28,12 @@ bash install.sh
 When `install.sh` asks for a token, visit:
 
 ```
-https://tooldispatch.visionairy.biz/auth/github
+https://dispatch.visionairy.biz/auth/github
 ```
 
 Sign in with GitHub. Copy the token shown on screen and paste it into the install prompt.
 
-**Already installed and need your token?** Visit `https://tooldispatch.visionairy.biz/token-lookup` — it re-runs OAuth and shows your token again.
+**Already installed and need your token?** Visit `https://dispatch.visionairy.biz/token-lookup` — it re-runs OAuth and shows your token again.
 
 ### 3. Start a new CC session
 
@@ -96,22 +96,37 @@ Not sure which to pick? Ask me — I can explain the differences.
 
 ## When Dispatch intercepts
 
-Hook 2 fires before every Skill, Agent, or MCP tool call. When Claude's chosen tool scores 10+ points lower than a marketplace alternative, Dispatch blocks and shows you the comparison:
+Hook 2 fires before every Skill, Agent, or MCP tool call. When Claude's chosen tool scores 10+ points lower than a marketplace alternative, Dispatch blocks and shows you the comparison — grouped by type, with three scoring components per tool:
 
 ```
-[DISPATCH] Intercepted: CC is about to use 'superpowers:systematic-debugging' for Flutter Fixing.
-CC's tool score for this task: 62/100
+[Dispatch] Better tools exist for this flutter-fixing task.
+'superpowers:systematic-debugging' (skill) scores 62 for this task.
 
-Marketplace alternatives:
-  1. flutter-mobile-app-dev [94/100] ← TOP PICK
-     Why: Purpose-built for Flutter/Dart debugging with widget tree inspection.
-     Install: npx skills add flutter-mobile-app-dev -y && claude
+── Plugins ──
+  • flutter-mobile-app-dev
+     Relevance 91 · Signal 78 · Velocity 62  installs:12,400 stars:340 forks:28
+     Expert Flutter agent for widgets, state management, and iOS/Android debugging.
+     Install: claude install plugin:anthropic:flutter-mobile-app-dev
 
-⚠ A marketplace tool scores higher than 'superpowers:systematic-debugging' for this task.
+── Skills ──
+  • VisionAIrySE/flutter@flutter-dev
+     Relevance 84 · Signal 65 · Velocity 55  installs:2,100 stars:88 forks:14
+     Flutter dev skill for widget building and state management.
+     Install: claude install VisionAIrySE/flutter@flutter-dev
+
+── MCPs ──
+  • fluttermcp
+     Relevance 0 · Signal 42 · Velocity 30  installs:890 stars:12 forks:3
+     ⚠ no description — install at your own risk
+
+Note: Review before installing. Dispatch surfaces tools based on community signals
+and task context — not a security audit.
+
+⚠ Marketplace tools score higher than 'superpowers:systematic-debugging' (skill) for this task.
   Options:
-  1. Say 'proceed' to continue with the current tool
-  2. Install flutter-mobile-app-dev (run /compact first, then install and restart CC)
-  3. Say 'skip dispatch' to ignore this task type for the rest of the session
+  1. Say 'proceed' to continue with 'superpowers:systematic-debugging' (one-time bypass, no restart needed)
+  2. Install flutter-mobile-app-dev plugin — run /compact first, then install and restart CC
+  3. Ignore Dispatch for this task — say 'skip dispatch'
 ```
 
 ### Your three options
@@ -152,18 +167,18 @@ Shows:
 
 ## Your account
 
-**Account page:** `https://tooldispatch.visionairy.biz/account`
+**Account page:** `https://dispatch.visionairy.biz/account`
 - See your plan and quota
 - Copy your token
 - Manage billing (Pro users get a Stripe portal link)
 
-**Dashboard (Pro):** `https://tooldispatch.visionairy.biz/dashboard?token=YOUR_TOKEN`
+**Dashboard (Pro):** `https://dispatch.visionairy.biz/dashboard?token=YOUR_TOKEN`
 - Interception history
 - Block rate
 - Top tools suggested
 - Install conversions (tools you installed after a suggestion)
 
-**Upgrade to Pro:** `https://tooldispatch.visionairy.biz/pro?token=YOUR_TOKEN`
+**Upgrade to Pro:** `https://dispatch.visionairy.biz/pro?token=YOUR_TOKEN`
 - **$6/month** for the first 300 users (Founding Dispatcher — locked for life) — unlimited interceptions, Sonnet ranking, pre-ranked catalog, full dashboard
 - $10/month standard after founding tier fills
 
@@ -227,7 +242,7 @@ pip3 install anthropic --break-system-packages
 
 **Lost your token**
 
-Go to `https://tooldispatch.visionairy.biz/token-lookup` — signs you in with GitHub and shows your token.
+Go to `https://dispatch.visionairy.biz/token-lookup` — signs you in with GitHub and shows your token.
 
 **Want to uninstall**
 
@@ -243,7 +258,7 @@ Removes all files, hook scripts, and settings.json entries automatically.
 
 **BYOK mode:** all Haiku calls go directly from your machine to Anthropic. Nothing passes through Dispatch servers.
 
-**Hosted mode:** your last ~3 messages and working directory path are sent to `tooldispatch.visionairy.biz` for classification and immediately discarded. We store your GitHub username, task type labels (e.g. `flutter-fixing`), and tool scores. We do not store conversation content.
+**Hosted mode:** your last ~3 messages and working directory path are sent to `dispatch.visionairy.biz` for classification and immediately discarded. We store your GitHub username, task type labels (e.g. `flutter-fixing`), and tool scores. We do not store conversation content.
 
 Full privacy table in [README](../README.md#privacy). To delete your account, email dispatch@visionairy.biz.
 

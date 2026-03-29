@@ -347,7 +347,7 @@ For the X thread (Day 4 — write now, post then):
 - Verify signup notifications hitting #dispatch-log in Slack ✓ (already set up)
 - Add UTM params to install links in each post (e.g., `?ref=reddit`, `?ref=hn`, `?ref=x`)
   so you know which channel drives installs
-- Dashboard at tooldispatch.visionairy.biz/dashboard to track conversions
+- Dashboard at dispatch.visionairy.biz/dashboard to track conversions
 
 ---
 
@@ -560,7 +560,7 @@ Queue personalized replies for Russ to approve in #dispatch-queue before sending
 
 | Tool | When | Why |
 |---|---|---|
-| `/browse` | Day 2 | QA test tooldispatch.visionairy.biz install flow before launch |
+| `/browse` | Day 2 | QA test dispatch.visionairy.biz install flow before launch |
 | `/ship` | Day 2 | Push all committed changes, open PR |
 | `/document-release` | Day 2 | Catch any stale README after shipping |
 | `/canary` | Day 3 (after posting) | Watch for server errors when install traffic spikes |
