@@ -22,7 +22,7 @@ ToolDispatch puts the best tool in Claude's hands at the right moment. XF Audit 
 
 **XF Audit** covers the second half: Claude Code produces architecturally sound code that often doesn't connect. It renames a function and misses three callers. It calls a function with the wrong number of arguments. These failures are silent until runtime — and by then the session context is gone. XF Audit closes that loop at the edit boundary, where the cost of fixing is near-zero and the context is still live.
 
-> **XF** stands for [Xpansion Framework](https://github.com/VisionAIrySE) — a boundary-definition methodology built by [Visionairy](https://visionairy.biz) that uses recursive MECE branch discovery to map system boundaries at the appropriate depth for each problem. Applied to code contracts: function signatures are boundaries, callers are branches, the cascade analysis terminates when the call graph is exhausted. The same framework that powers Visionairy's system analysis tools powers XF Audit's contract checking. XF Audit is the first public application of the Xpansion Framework to AI-generated code.
+> **XF** stands for **Xpansion Framework** — see below.
 
 > One platform. Both sides of the problem. And it leaves a receipt.
 
@@ -442,6 +442,33 @@ ToolDispatch covers both sides. Dispatch is the runtime layer that ensures Claud
 The hosted version knows something a local install can never know: what tools thousands of other developers actually reached for when they were doing exactly what you're doing right now — and which ones they kept. That signal compounds over time. [Start free.](https://tooldispatch.visionairy.biz/auth/github)
 
 Built by [Visionairy](https://visionairy.biz). If you're getting serious about AI developer tooling, also check out [Vib8](https://vib8.ai) — AI-powered competitive intelligence for founders.
+
+---
+
+## The Xpansion Framework (XF)
+
+XF Audit is built on the **[Xpansion Framework](https://github.com/VisionAIrySE)** — a boundary-definition methodology developed by [Visionairy](https://visionairy.biz) that applies recursive MECE branch discovery to map system boundaries at the appropriate depth for any problem.
+
+The core idea: every system has boundaries. Every boundary has callers. Every caller is a branch. Discovery terminates when the graph is exhausted or the use case is satisfied — not before, not after. The framework enforces this discipline systematically across four boundary types: **DATA** (what flows), **NODES** (what processes), **FLOW** (how it moves), **ERRORS** (what breaks it).
+
+Applied to code contracts in XF Audit:
+
+| XF concept | XF Audit application |
+|------------|----------------------|
+| Boundary definition | Function signatures, import contracts, env vars, stubs |
+| Recursive branch discovery | Cascade analysis — traces every caller of every broken boundary |
+| MECE termination | Cascade stops when the call graph is exhausted, no gaps, no overlaps |
+| Appropriate depth | Stage 1 always runs; Stages 2–4 escalate only when violations exist |
+
+XF Audit is the first public application of the Xpansion Framework to AI-generated code. The same methodology powers Visionairy's system analysis, process design, and debugging tools across all projects. When you use XF Audit, you're running a general-purpose boundary analysis engine that happens to be pointed at your codebase.
+
+---
+
+## Related
+
+**[claude-code-hooks](https://github.com/shanraisshan/claude-code-hooks)** — the most complete public reference for Claude Code hook events. Documents 26 distinct hook types including several that most developers don't know exist: `PostToolUseFailure`, `PreCompact`/`PostCompact`, `WorktreeCreate`/`WorktreeRemove`, `TaskCreated`/`TaskCompleted`, `CwdChanged`, `FileChanged`. ToolDispatch currently uses 3 of these (`UserPromptSubmit`, `PreToolUse`, `Stop`). If you're building hooks, start here.
+
+There is no dedicated hook registry today — no glama.ai or Smithery equivalent for hook-based tools. Skills have skills.sh. MCPs have glama and Smithery. Hooks have nothing. ToolDispatch plans to be the first catalog to index hook-based tools as the pattern grows.
 
 ---
 
