@@ -277,20 +277,25 @@ asciinema rec dispatch-demo.cast --title "ToolDispatch in action"
 ```
 
 **Demo script — follow exactly:**
-1. `claude` — start CC in the demo project
-2. Say: "Add a payment processing function using Stripe"
-3. CC reaches for a generic tool → **PAUSE — let Dispatch intercept fire** → show scorecard
-4. Say "proceed" or install the better tool — show the interaction
-5. Let CC write code with broken imports → **XF Audit Stage 1 fires** → show violation + repair plan
-6. Say: "Now deploy this to AWS Lambda"
-7. CC tries a generic deployment skill → **second Dispatch intercept** → show scored comparison
-8. End session → **stop digest fires** → "3 audited · 2 blocked · 1 recommendation shown"
 
-Convert to GIF:
-```bash
-agg dispatch-demo.cast dispatch-demo.gif
-# Trim to 30–45 seconds max
-```
+Two separate GIFs. Record XFA first (it fires more deterministically).
+
+**GIF 1: XF Audit demo** (use files already in `demo/` directory of the repo):
+1. `claude` — start CC in `/home/visionairy/Dispatch/demo/`
+2. Say: "The monitor.py is checking health but I want it to also send high-priority alerts via PagerDuty for critical failures"
+3. CC will edit monitor.py to call send_pagerduty() — **XF Audit fires on the Edit**
+4. Shows: stub violation (send_pagerduty is a stub), caller chain, repair plan
+5. That's the whole demo. 20 seconds.
+
+**GIF 2: Dispatch intercept demo** (use source-control category — has MCPs + plugins + skills):
+1. `claude` — start CC in any project with a git repo
+2. Say: "Help me review this PR and set up automated PR checks with GitHub Actions"
+3. CC reaches for a skill → **Dispatch PreToolUse intercept fires**
+4. Shows grouped scorecard: Skills / MCPs / Plugins, TOP PICK with score gap
+5. End session → stop digest fires
+
+Record with ScreenToGif (Windows) or peek (Linux). 1280px wide, 16pt terminal font.
+No asciinema needed — just screen record the CC terminal window directly.
 
 *Afternoon (2 hours): Passive channel submissions*
 
@@ -344,7 +349,7 @@ For the X thread (Day 4 — write now, post then):
 - Tweet 4: "Together: right tool, working code. 2-min install."
 
 *Set up analytics:*
-- Verify signup notifications hitting #dispatch-log in Slack ✓ (already set up)
+- **Verify Slack webhooks are live** — go to Render → your service → Environment → confirm `SLACK_LOG_WEBHOOK_URL` and `SLACK_QUEUE_WEBHOOK_URL` are set and not expired. Test: trigger a manual signup or re-save the env var to force a Render redeploy, then check #dispatch-log. The code is wired; the webhooks need to be confirmed live before launch.
 - Add UTM params to install links in each post (e.g., `?ref=reddit`, `?ref=hn`, `?ref=x`)
   so you know which channel drives installs
 - Dashboard at dispatch.visionairy.biz/dashboard to track conversions
@@ -526,8 +531,11 @@ That last line — "I'll pull it from your session data" — personalizes it and
 
 ## PART 5: AUTOMATIONS (SET UP ON DAY 1, RUN FOREVER)
 
-**Already running:**
-- Signup → #dispatch-log Slack notification ✓
+**Coded but webhook verification pending:**
+- Signup → #dispatch-log Slack notification (code wired, webhooks need live confirmation — see Day 2)
+- Upgrade → #dispatch-log (same)
+- Cron complete → #dispatch-log (same)
+- Install conversion → #dispatch-log (same)
 
 **Set up this week:**
 
