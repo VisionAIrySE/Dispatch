@@ -22,6 +22,8 @@ ToolDispatch puts the best tool in Claude's hands at the right moment. XF Audit 
 
 **XF Audit** covers the second half: Claude Code produces architecturally sound code that often doesn't connect. It renames a function and misses three callers. It calls a function with the wrong number of arguments. These failures are silent until runtime — and by then the session context is gone. XF Audit closes that loop at the edit boundary, where the cost of fixing is near-zero and the context is still live.
 
+> **XF** stands for [Xpansion Framework](https://github.com/VisionAIrySE) — a boundary-definition methodology built by [Visionairy](https://visionairy.biz) that uses recursive MECE branch discovery to map system boundaries at the appropriate depth for each problem. Applied to code contracts: function signatures are boundaries, callers are branches, the cascade analysis terminates when the call graph is exhausted. The same framework that powers Visionairy's system analysis tools powers XF Audit's contract checking. XF Audit is the first public application of the Xpansion Framework to AI-generated code.
+
 > One platform. Both sides of the problem. And it leaves a receipt.
 
 ---
