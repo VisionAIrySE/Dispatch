@@ -65,19 +65,37 @@ If no task shift is detected, Hook 1 exits silently with no output.
 **Hook 2 — fires before every tool call.** When Claude is about to invoke a Skill, Agent, or MCP tool, Dispatch intercepts it. It searches the marketplace — npm skills, the Claude plugin registries, and glama.ai for MCPs — for tools relevant to your current task, scores them against what Claude was about to use, and if a marketplace tool scores 10+ points higher — it blocks the call and surfaces the comparison:
 
 ```
-[DISPATCH] Intercepted: CC is about to use 'superpowers:systematic-debugging' for Flutter Fixing.
-CC's tool score for this task: 62/100
+[Dispatch] Intercepted: CC is about to use 'superpowers:systematic-debugging' (Skill) for Flutter Fixing.
+CC confidence score: 62/100
 
-Marketplace alternatives:
-  1. flutter-mobile-app-dev [94/100] ← TOP PICK
-     Why: Purpose-built for Flutter/Dart debugging with widget tree inspection.
-     Install + restart: npx skills add flutter-mobile-app-dev -y && claude
+── Plugins ──
+  1. flutter-mobile-app-dev
+     Relevance 91 · Signal 78 · Velocity 62  installs:12,400 stars:340 forks:28
+     Purpose-built Flutter/Dart agent — widget tree inspection, state, iOS/Android builds.
+     Install: claude install plugin:anthropic:flutter-mobile-app-dev && claude
 
-⚠ A marketplace tool scores higher than 'superpowers:systematic-debugging' for this task.
+── Skills ──
+  1. VisionAIrySE/flutter@flutter-dev
+     Relevance 84 · Signal 65 · Velocity 55  installs:2,100 stars:88 forks:14
+     Flutter dev workflow — widget builds, golden tests, pub dependencies.
+     Install: npx skills add VisionAIrySE/flutter@flutter-dev -y && claude
+  2. superpowers/flutter@flutter-expert
+     ⚠ no description — install at your own risk
+     Relevance 0 · Signal 42 · Velocity 30  installs:890 stars:12 forks:3
+
+── MCP Servers ──
+  1. dart-mcp
+     Relevance 79 · Signal 58 · Velocity 48  installs:4,200 stars:120 forks:9
+     Dart analysis server — static analysis, pub resolve, widget inspection.
+     More info: https://github.com/dart-lang/dart-mcp
+
+⚠ Marketplace tools score higher than 'superpowers:systematic-debugging' (Skill) for this task.
   Options:
-  1. Say 'proceed' to continue with 'superpowers:systematic-debugging' (one-time bypass)
-  2. Install flutter-mobile-app-dev — run /compact first, then install and restart CC
+  1. Say 'proceed' to continue with 'superpowers:systematic-debugging' (one-time bypass, no restart needed)
+  2. Install flutter-mobile-app-dev plugin — run /compact first, then install and restart CC
   3. Ignore Dispatch for this task — say 'skip dispatch'
+
+Note: Review before installing. Dispatch surfaces tools based on community signals and task context — not a security audit.
 
 Present these options to the user. Wait for their response before taking any action.
 ```
@@ -222,17 +240,23 @@ The threshold is a 10-point gap. If the best marketplace alternative scores 72 a
 
 ## How the scoring works
 
-When Hook 2 intercepts a tool call, it:
+Each recommended tool shows three components so you can judge it yourself:
 
-1. Reads the current task category from state (written by Hook 1 on the last detected shift)
-2. Searches the marketplace for tools matching that category's keywords
-3. Scores each result 0–100 for relevance to the specific task — considering tool name, description, and the task context
-4. Scores Claude's chosen tool on the same scale
-5. Blocks if the top result beats Claude's score by 10+, passes through otherwise
+- **Relevance** — how well the tool's description matches your specific task, scored 0–100 by a fast LLM pass. Tools with no description score 0 and get a visible warning.
+- **Signal** — popularity as a quality proxy: installs (60%), stars (25%), forks (15%), all log-scaled so a newer tool with 500 installs isn't buried by one with 50,000.
+- **Velocity** — install momentum relative to how long the tool has existed. A tool with 200 installs in its first two weeks ranks higher than one with 1,000 installs over three years.
 
-**Free/BYOK** — hits the live [skills.sh](https://skills.sh) marketplace and glama.ai MCP registry on each intercept (~2–4s)
+The weighted score is `relevance × 0.5 + signal × 0.3 + velocity × 0.2`. Dispatch blocks when the top weighted score beats CC's confidence score by 10+ points.
 
-**Pro** — pulls from a pre-ranked catalog built by a daily crawl across npm, skills.sh, glama.ai, and the Claude plugin registries. Tools are classified into a hierarchical taxonomy (category → subcategory → leaf node) during the crawl. At intercept time, Dispatch maps your task to the closest taxonomy leaf and returns a pure catalog query — no LLM call. Intercept response is <200ms.
+Tools are grouped by type (Plugins / Skills / MCPs), up to 3 per group. Raw installs, stars, and forks are shown so you can verify the signal yourself.
+
+**No description = relevance 0.** If a tool has no README or description, it can't score on relevance — only signal and velocity. It'll still appear if community adoption is strong, but with a ⚠ warning. Dispatch sends outreach to undescribed tool authors automatically to help close this gap.
+
+**Caveat:** Dispatch surfaces tools based on community signals and task context — not a security audit. Review any tool before installing.
+
+**Free/BYOK** — hits the live [skills.sh](https://skills.sh) marketplace and glama.ai MCP registry on each intercept (~2–4s). Relevance is scored by an LLM using the tool description.
+
+**Pro** — pulls from a pre-ranked catalog built by a daily crawl across npm, skills.sh, glama.ai, and the Claude plugin registries. Tools are scored during the crawl — all three components pre-computed. At intercept time, Dispatch maps your task to the closest taxonomy leaf and returns a pure catalog query. Intercept response is <200ms, no LLM call at hook time.
 
 ---
 
