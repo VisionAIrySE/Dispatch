@@ -1,14 +1,15 @@
-# Dispatch — Claude Code Configuration
+# ToolDispatch — Claude Code Configuration
 
-**Project:** Dispatch — Runtime skill router for Claude Code
-**Repo:** github.com/VisionAIrySE/Dispatch
+**Platform:** ToolDispatch — Claude Code insurance policy (best tool + code that connects)
+**Module:** Dispatch — Runtime tool router | XF Audit — Contract checker (see `/home/visionairy/.claude/xf-boundary-auditor/`)
+**Repo:** github.com/ToolDispatch/Dispatch
 **Stack:** Python 3.8+ · Bash · Claude Haiku API (free) / Sonnet 4.6 (Pro)
 
 ---
 
 ## Architecture
 
-Two-hook pipeline:
+Three-hook pipeline:
 
 **Hook 1 — dispatch.sh** (UserPromptSubmit, fires on every message)
 - Stage 1: Haiku shift detection, ~100ms — returns `{shift, task_type, confidence}`
@@ -16,6 +17,7 @@ Two-hook pipeline:
   keyword match against `categories.json`; logs unknown categories to `unknown_categories.jsonl`;
   writes `last_task_type`, `last_category`, `last_context_snippet`, `last_cwd` to `state.json`
 - No stdout output — completely silent
+- Increments `session_recommendations` counter when Stage 3 proactive fires
 
 **Hook 2 — preuse_hook.sh** (PreToolUse, fires before tool invocations)
 - Intercepts: `Skill`, `Agent`, `mcp__*` tool calls — passes through everything else
@@ -24,6 +26,13 @@ Two-hook pipeline:
 - Scores marketplace tools vs CC's chosen tool (Haiku/Sonnet 0–100)
 - Blocks (exit 2) if top marketplace tool ≥ cc_score + 10 points
 - Writes bypass token so user's "proceed" passes through without re-block
+- Increments `session_audits` on every intercept; `session_blocks` on exit 2
+
+**Hook 3 — stop_hook.sh** (Stop, fires when session ends)
+- Reads `session_audits`, `session_blocks`, `session_recommendations` from `state.json`
+- Prints one-line digest: `[Dispatch] Session: N tool calls audited · N blocked · N recommendations shown`
+- Silent if Dispatch did nothing this session (audits=0, recommendations=0)
+- Always exits 0 — never blocks session close
 
 **Hosted mode (token in config.json):**
 - dispatch.sh: POSTs transcript to /classify — quota on confirmed shifts only
@@ -53,7 +62,8 @@ Two-hook pipeline:
 | `categories.json` | MECE category catalog (16 categories) |
 | `dispatch.sh` | UserPromptSubmit hook — shift detection + state write |
 | `preuse_hook.sh` | PreToolUse blocking hook — intercepts and scores |
-| `install.sh` | Copies files, registers both hooks in settings.json |
+| `stop_hook.sh` | Stop hook — session digest (audits · blocks · recommendations) |
+| `install.sh` | Copies files, registers all three hooks in settings.json |
 | `stack_scanner.py` | Detects languages, frameworks, tools, and MCP servers from project files |
 | `llm_client.py` | LLM-agnostic adapter (OpenRouter, Anthropic, noop) |
 | `test_classifier.py` | 23 unit tests for classifier |
@@ -113,6 +123,10 @@ return json.loads(text.strip())
 - `last_suggested` — tool name Dispatch last recommended (for conversion tracking)
 - `last_cc_tool_type` — "mcp" | "skill" | "agent" from most recent PreToolUse intercept
 - `bypass` — `{tool_name, expires}` one-time bypass token (TTL 120s)
+- `session_id` — CC session identifier; counter reset trigger when it changes
+- `session_audits` — count of PreToolUse intercepts this session
+- `session_blocks` — count of exit-2 blocks this session
+- `session_recommendations` — count of Stage 3 proactive outputs this session
 - `first_run` — bool, cleared after first-session welcome message
 - `limit_cooldown` / `auth_invalid_cooldown` — suppression counters for 402/401 notices
 

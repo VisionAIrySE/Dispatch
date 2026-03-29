@@ -1,8 +1,12 @@
-# Dispatch — Marketing Content Package
+# ToolDispatch — Marketing Content Package
 
-**Updated:** 2026-03-16
+**Updated:** 2026-03-28
 **Version:** v1.0.0
-**Repo:** https://github.com/VisionAIrySE/Dispatch
+**Repo:** https://github.com/ToolDispatch/Dispatch
+**Platform:** https://tooltooldispatch.visionairy.biz
+
+**Core tagline:** Your Claude Code insurance policy — best tool for the job up front, code that connects before it breaks.
+**Dispatch half:** "best tool for the job up front" | **XF Audit half:** "code that connects before it breaks"
 
 ---
 
@@ -24,7 +28,7 @@
 
 **Title:**
 ```
-Show HN: Dispatch – proactively surfaces the best tools when you shift tasks, then intercepts Claude before it picks wrong
+Show HN: ToolDispatch – Claude Code insurance policy: best tool for the job up front, code that connects before it breaks
 ```
 
 **Body:**
@@ -55,6 +59,8 @@ Then, ten minutes later, Claude was about to invoke a generic debugging skill. I
 
 Claude Code has access to 10,978 tools across 6 sources — skills.sh, glama.ai, Smithery.ai, the official MCP registry, and both plugin marketplaces. At runtime, Claude picks from a handful of defaults. It has no mechanism to know what's available, what's installed, or what actually performs best for the task in front of it. Every session, you're flying blind on tool selection.
 
+And it's getting worse, not better. New tools ship every week. The ecosystem is exploding. The gap between what Claude knows about at runtime and what actually exists widens every day. You can't track it manually. Most developers don't even try. They use the same tools they installed months ago, unaware that something purpose-built for exactly their stack launched last Tuesday.
+
 Dispatch is two hooks. Hook 1 (UserPromptSubmit) runs on every message — ~100ms, silent when nothing changed. When you shift tasks, it maps the shift to one of 16 MECE categories, queries the catalog, and surfaces a grouped Plugins/Skills/MCPs block with install commands directly into Claude's context before it responds. Hook 2 (PreToolUse) fires before Claude invokes any Skill, Agent, or MCP tool. It compares CC's chosen tool against marketplace alternatives on a 0–100 scale. If a better tool scores 10+ points higher, it blocks and shows you the comparison. One word — "proceed" — to override.
 
 The catalog isn't static. It's rebuilt daily from live sources, scored by real behavioral signals: install counts, GitHub stars, forks, freshness. Tools that developers actually reach for score higher than tools that just exist. And every time a Dispatch user installs a recommended tool — or bypasses a block — that signal feeds back into the scores. The more developers use it, the sharper it gets for everyone.
@@ -63,10 +69,12 @@ This is the part I find most interesting: we now have category-level data on whe
 
 Install is one command:
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/VisionAIrySE/Dispatch/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ToolDispatch/Dispatch/main/install.sh)
 ```
 
-Requires Python 3.8+ and Node.js. Two modes: BYOK (your own Anthropic/OpenRouter key, full dual-layer locally) or Hosted (free token at dispatch.visionairy.biz, 8 detections/day free, Pro for unlimited + pre-ranked catalog; proactive layer coming V2). 313 tests across 8 modules if you want to read the code before installing.
+Requires Python 3.8+ and Node.js. Two modes: BYOK (your own Anthropic/OpenRouter key, full dual-layer locally) or Hosted (free token at tooldispatch.visionairy.biz, 8 detections/day free, Pro for unlimited + pre-ranked catalog). 313 tests across 8 modules if you want to read the code before installing.
+
+One more thing worth saying: if you're newer to Claude Code and feel like it's not quite clicking — like the results aren't as good as you hoped — this is often why. Native CC with no tool awareness is Claude reaching for whatever it knows. CC with Dispatch is Claude reaching for the best tool available for what you're actually doing. The difference is significant. You need it today. You'll need it more tomorrow.
 
 Honest limitations: the intercept is only as good as what's in the catalog. Tools with no description or no GitHub repo get a lower baseline score. Cold-start is real — the more you use it, the better the catalog gets for your stack. And adding ~100–500ms to every message (Stage 1) and ~3–5s on confirmed shifts is a real cost — still within CC's 10s hook timeout, but not nothing.
 
@@ -78,16 +86,16 @@ Looking for feedback on: whether the 10-point gap threshold feels right, whether
 
 **Title:**
 ```
-Claude keeps picking mediocre tools when better ones exist. I built something that intercepts it — and now tells you what to install before you even ask.
+Claude keeps picking mediocre tools when better ones exist. I built something that intercepts it — and tells you what to install before you even ask.
 ```
 
 **Body:**
 
 Here's a thing that happens silently every CC session: Claude reaches for a tool. Not because it's the best one for your task — because it's the one it knows about. The GitHub skill when you have a GitHub Actions-specific skill installed. The generic testing approach when you have a purpose-built TDD skill. The built-in filesystem tool when you have an MCP that scores 40 points higher for exactly what you're doing.
 
-But here's the deeper problem: most users never manually invoke a tool at all. They don't know what exists. They installed three MCPs six months ago, installed two more last week, and have no idea which one Claude should reach for mid-session.
+But here's the deeper problem, and it's getting worse: most users never manually invoke a tool at all. They don't know what exists. They installed three MCPs six months ago, installed two more last week, and have no idea which one Claude should reach for mid-session. And new tools ship every week — the ecosystem is exploding. You can't track it manually. Claude certainly can't.
 
-Claude has no runtime awareness of the tool ecosystem. It doesn't know about skills.sh. It doesn't know what you installed last week. It doesn't know what's in the MCP registries. It picks what it knows.
+If you're newer to CC and feel like it's not quite clicking — the results aren't as sharp as you hoped — this is often why. Native CC has no runtime awareness of the tool ecosystem. It doesn't know about skills.sh. It doesn't know what you installed last week. It doesn't know what's in the MCP registries. It picks what it knows. The jump from CC native to CC with the right tools for every task is real. That's the gap Dispatch closes.
 
 I catalogued 10,978 tools this week across 6 sources (skills.sh, glama.ai, Smithery.ai, official MCP registry, both CC plugin marketplaces). Then I built Dispatch: two hooks that fire at the two moments that matter.
 
@@ -99,7 +107,7 @@ BYOK gets both layers — proactive discovery and intercept — fully local. Hos
 
 The thing that surprised me most building this: we now have category-level data on where Claude's native tool selection is weakest. Mobile development. Database tooling. Cloud infrastructure. Not impressions — scored behavioral data from real intercepts. The gap in some categories is significant.
 
-Repo: https://github.com/VisionAIrySE/Dispatch
+Repo: https://github.com/ToolDispatch/Dispatch
 
 Would be curious whether the detection granularity feels right for different workflows.
 
@@ -162,7 +170,7 @@ Exit code 2 from a PreToolUse hook blocks the tool call. Exit 0 passes through. 
 
 313 tests across 8 modules. The hardest thing to test is transcript parsing — the edge cases keep multiplying.
 
-Repo: https://github.com/VisionAIrySE/Dispatch
+Repo: https://github.com/ToolDispatch/Dispatch
 
 Happy to go deep on the hook architecture or the catalog scoring logic.
 
@@ -183,7 +191,7 @@ This happens every session.
 Thread: Dispatch, a dual-layer runtime for Claude Code 🧵
 ```
 
-**Tweet 2 — The scale:**
+**Tweet 2 — The scale + urgency:**
 ```
 I crawled 10,978 tools this week.
 
@@ -193,6 +201,13 @@ Official MCP registry. Both CC plugin marketplaces.
 Scored by real signals — installs, stars, forks, freshness.
 
 Claude Code knows about almost none of them at runtime.
+
+And new ones ship every week.
+The gap between what Claude knows and what exists — grows every day.
+
+You don't know what you don't know.
+Neither does Claude.
+And that's going to get worse, not better.
 ```
 
 **Tweet 3 — Hook 1 (proactive discovery):**
@@ -300,14 +315,14 @@ You're locking in a rate before the network effect makes this obviously worth mo
 ```
 Install:
 
-bash <(curl -fsSL https://raw.githubusercontent.com/VisionAIrySE/Dispatch/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ToolDispatch/Dispatch/main/install.sh)
 
 Sign in with GitHub. Copy the token. Start a new CC session.
 
 Free hosted tier to start.
 No API key required.
 
-https://github.com/VisionAIrySE/Dispatch
+https://github.com/ToolDispatch/Dispatch
 ```
 
 **Tweet 11 — CTA:**
@@ -318,8 +333,8 @@ The plugin ecosystem is deeper than most Claude Code users know.
 
 Dispatch makes Claude actually use it — and tells you what exists before Claude has to guess.
 
-⭐ https://github.com/VisionAIrySE/Dispatch
-dispatch.visionairy.biz
+⭐ https://github.com/ToolDispatch/Dispatch
+tooldispatch.visionairy.biz
 ```
 
 ---
@@ -337,7 +352,7 @@ Hook 1: When you shift tasks, Dispatch immediately surfaces the best available t
 
 Hook 2: Before Claude invokes a tool, it scores CC's choice against marketplace alternatives (0–100). If the gap is 10+ points, it blocks. One word to proceed.
 
-GitHub: https://github.com/VisionAIrySE/Dispatch
+GitHub: https://github.com/ToolDispatch/Dispatch
 Free to start, no API key required. BYOK gets both layers.
 ```
 
@@ -362,7 +377,7 @@ The catalog is built from 10,978 tools crawled daily, scored by real signals (in
 
 Free hosted tier (8/day) or BYOK. Pro = pre-ranked catalog (<200ms), Sonnet ranking, unlimited.
 
-https://github.com/VisionAIrySE/Dispatch
+https://github.com/ToolDispatch/Dispatch
 
 313 tests if you want to audit before installing. Happy to discuss the hook architecture.
 ```
@@ -382,7 +397,7 @@ The catalog now covers 4,800+ MCPs across glama.ai, Smithery.ai, and the officia
 
 From the distribution angle: if you publish an MCP, Dispatch surfaces it to CC users doing exactly the tasks it's built for — at both the discovery moment and the decision moment. No manual discovery required on their end.
 
-Repo: https://github.com/VisionAIrySE/Dispatch
+Repo: https://github.com/ToolDispatch/Dispatch
 ```
 
 ---
@@ -471,7 +486,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 ### Brand Monitoring
 
 - "Dispatch VisionAIrySE"
-- "dispatch.visionairy.biz"
+- "tooldispatch.visionairy.biz"
 - "VisionAIrySE"
 - "Dispatch Claude Code"
 - "skill router Claude"
@@ -499,7 +514,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > I built Dispatch specifically for this: two hooks that address both sides of the problem. Hook 1 proactively surfaces available tools grouped by type (Plugins, Skills, MCPs with install commands) when you shift tasks — before Claude has to pick. Hook 2 intercepts before Claude invokes a tool and checks if something better-suited to your current task exists. If you have a purpose-built skill installed that scores higher, it surfaces it before Claude proceeds.
 >
-> Free to start: https://github.com/VisionAIrySE/Dispatch
+> Free to start: https://github.com/ToolDispatch/Dispatch
 
 ---
 
@@ -509,7 +524,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > For finding the right MCP for a task automatically mid-session: I built Dispatch — a CC hook that proactively surfaces relevant MCPs when you shift tasks (grouped with install commands, before Claude starts), and also intercepts before Claude invokes a tool to surface better alternatives from a catalog of 4,800+ MCPs scored by real signals. It fires at the moment it matters, not at install time.
 >
-> https://github.com/VisionAIrySE/Dispatch — free tier, open source.
+> https://github.com/ToolDispatch/Dispatch — free tier, open source.
 
 ---
 
@@ -519,7 +534,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > I built Dispatch on both — UserPromptSubmit for task shift detection, catalog query, and proactive grouped recommendations (Plugins/Skills/MCPs with install commands); PreToolUse for intercepting bad tool choices before they happen. The code is a decent real-world reference for both hooks:
 >
-> https://github.com/VisionAIrySE/Dispatch — `dispatch.sh` and `dispatch-preuse.sh`.
+> https://github.com/ToolDispatch/Dispatch — `dispatch.sh` and `dispatch-preuse.sh`.
 
 ---
 
@@ -529,7 +544,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > I built Dispatch for both. Hook 1 fires when you shift tasks and immediately shows you the best available tools — grouped by type (Plugins, Skills, MCPs) with install commands — in Claude's context before it responds. You find out what's available before Claude has to guess. Hook 2 intercepts before Claude invokes any Skill, Agent, or MCP, scores CC's choice against a catalog of 10,978 marketplace tools (0–100), and blocks if a better-suited tool scores 10+ points higher. One word to override.
 >
-> https://github.com/VisionAIrySE/Dispatch
+> https://github.com/ToolDispatch/Dispatch
 
 ---
 
@@ -539,7 +554,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 
 > Current setup beyond the usual MCPs:
 >
-> Dispatch (https://github.com/VisionAIrySE/Dispatch) — a two-hook runtime. When I shift tasks, it immediately shows me what tools exist for that category — Plugins, Skills, MCPs, grouped with install commands — before Claude starts. Then if Claude still reaches for something suboptimal, Hook 2 intercepts and shows the scoring comparison. I've had it surface a purpose-built skill I'd installed months ago and never reached for manually. The proactive layer is the one I didn't expect to find useful.
+> Dispatch (https://github.com/ToolDispatch/Dispatch) — a two-hook runtime. When I shift tasks, it immediately shows me what tools exist for that category — Plugins, Skills, MCPs, grouped with install commands — before Claude starts. Then if Claude still reaches for something suboptimal, Hook 2 intercepts and shows the scoring comparison. I've had it surface a purpose-built skill I'd installed months ago and never reached for manually. The proactive layer is the one I didn't expect to find useful.
 >
 > Free to run, BYOK or hosted free tier. If you're already invested in the CC plugin ecosystem, it's the layer that makes that investment actually pay off.
 
@@ -553,7 +568,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > What I didn't expect: the CC Weakness Map it generates. Category-level data showing where Claude's default tool choices consistently underperform. Mobile development and database tooling have the biggest gaps in my sessions.
 >
-> https://github.com/VisionAIrySE/Dispatch
+> https://github.com/ToolDispatch/Dispatch
 
 ---
 
@@ -567,7 +582,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > The gap between what Claude defaults to and what's available is bigger than I expected. Some categories are 30+ points apart.
 >
-> Free, open source: https://github.com/VisionAIrySE/Dispatch
+> Free, open source: https://github.com/ToolDispatch/Dispatch
 >
 > Happy to hear what you think if you try it.
 
@@ -581,7 +596,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > The catalog is rebuilt daily from live sources scored by real behavioral signals. Gets sharper with use.
 >
-> Source open, 313 tests: https://github.com/VisionAIrySE/Dispatch
+> Source open, 313 tests: https://github.com/ToolDispatch/Dispatch
 >
 > Technical feedback welcome — especially on detection granularity.
 
@@ -595,7 +610,7 @@ Repo: https://github.com/VisionAIrySE/Dispatch
 >
 > From the distribution angle: if you publish an MCP, Dispatch surfaces it to CC users doing the exact tasks it's built for — at the discovery moment and at the decision moment.
 >
-> Open source: https://github.com/VisionAIrySE/Dispatch
+> Open source: https://github.com/ToolDispatch/Dispatch
 
 ---
 
@@ -609,7 +624,7 @@ Add Dispatch — dual-layer tool discovery and intercept runtime for Claude Code
 **Line to add** (Hooks section):
 
 ```markdown
-- [Dispatch](https://github.com/VisionAIrySE/Dispatch) — Dual-layer CC runtime: on task shift, proactively surfaces Plugins/Skills/MCPs with install commands grouped by type into Claude's context; before every tool call, scores CC's choice against 10,978 catalogued alternatives (0–100) and blocks when a better-suited tool exists. Free hosted tier or BYOK.
+- [Dispatch](https://github.com/ToolDispatch/Dispatch) — Dual-layer CC runtime: on task shift, proactively surfaces Plugins/Skills/MCPs with install commands grouped by type into Claude's context; before every tool call, scores CC's choice against 10,978 catalogued alternatives (0–100) and blocks when a better-suited tool exists. Free hosted tier or BYOK.
 ```
 
 **PR Body:**
@@ -634,8 +649,8 @@ Dispatch is a two-hook CC runtime that addresses the tool discovery gap at both 
 
 ## Links
 
-- GitHub: https://github.com/VisionAIrySE/Dispatch
-- Hosted tier: https://dispatch.visionairy.biz
+- GitHub: https://github.com/ToolDispatch/Dispatch
+- Hosted tier: https://tooldispatch.visionairy.biz
 - Catalog sources: skills.sh, Smithery.ai, glama.ai, registry.modelcontextprotocol.io
 ```
 

@@ -11,7 +11,9 @@
 #   2 — block the tool call; stdout is injected into CC's context
 # =============================================================================
 
-set -uo pipefail
+# Intentionally no set -e or set -o pipefail — hook must never crash and block Claude.
+# All individual commands have || fallbacks. Safety net catches any unhandled exit.
+trap 'exit 0' ERR
 
 # Provenance logging function
 log_decision() {
@@ -38,6 +40,23 @@ print(d.get('tool_name', ''))
 
 [ -z "$TOOL_NAME" ] && exit 0
 
+# ── Extract session_id for counter tracking ────────────────────────────────
+SESSION_ID=$(python3 -c "
+import json, sys
+d = json.loads(sys.argv[1])
+print(d.get('session_id', ''))
+" "$HOOK_INPUT" 2>/dev/null || echo "")
+
+# ── Derive CC_TOOL_TYPE early — needed by bypass logging path ─────────────
+# Must happen before bypass check (line ~54) which logs it to /api/detections.
+CC_TOOL_TYPE=$(python3 -c "
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import get_cc_tool_type
+d = json.loads(sys.argv[2])
+print(get_cc_tool_type(d.get('tool_name', '')))
+" "$SKILL_ROUTER_DIR" "$HOOK_INPUT" 2>/dev/null || echo "skill")
+
 # ── Should we intercept this tool? ────────────────────────────────────────
 SHOULD_INTERCEPT=$(python3 -c "
 import sys
@@ -47,6 +66,16 @@ print('yes' if should_intercept(sys.argv[2]) else 'no')
 " "$SKILL_ROUTER_DIR" "$TOOL_NAME" 2>/dev/null || echo "no")
 
 [ "$SHOULD_INTERCEPT" != "yes" ] && exit 0
+
+# ── Increment session audit counter ───────────────────────────────────────
+if [ -n "$SESSION_ID" ]; then
+    python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import increment_session_counter
+increment_session_counter('session_audits', sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$SESSION_ID" 2>/dev/null || true
+fi
 
 # ── Check bypass token (user previously said 'proceed') ───────────────────
 HAS_BYPASS=$(python3 -c "
@@ -146,13 +175,13 @@ d = json.loads(sys.argv[2])
 print(extract_cc_tool(d.get('tool_name', ''), d.get('tool_input', {})))
 " "$SKILL_ROUTER_DIR" "$HOOK_INPUT" 2>/dev/null || echo "$TOOL_NAME")
 
-CC_TOOL_TYPE=$(python3 -c "
-import json, sys
+# ── Persist cc_tool_type to state (conversion tracking + stage 3 hint) ───
+python3 -c "
+import sys
 sys.path.insert(0, sys.argv[1])
-from interceptor import get_cc_tool_type
-d = json.loads(sys.argv[2])
-print(get_cc_tool_type(d.get('tool_name', '')))
-" "$SKILL_ROUTER_DIR" "$HOOK_INPUT" 2>/dev/null || echo "skill")
+from interceptor import write_last_cc_tool_type
+write_last_cc_tool_type(sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$CC_TOOL_TYPE" 2>/dev/null || true
 
 # ── Load task type + context from state (written by dispatch.sh Stage 1) ──
 TASK_TYPE=$(python3 -c "
@@ -226,8 +255,8 @@ except Exception:
 stack_profile = {}
 if cwd:
     try:
-        from stack_scanner import get_stack_profile
-        stack_profile = get_stack_profile(cwd) or {}
+        from stack_scanner import load_stack_profile
+        stack_profile = load_stack_profile() or {}
     except Exception:
         pass
 print(json.dumps({
@@ -266,8 +295,8 @@ except Exception:
 stack_profile = {}
 if cwd:
     try:
-        from stack_scanner import get_stack_profile
-        stack_profile = get_stack_profile(cwd) or {}
+        from stack_scanner import load_stack_profile
+        stack_profile = load_stack_profile() or {}
     except Exception:
         pass
 print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile)))
@@ -287,8 +316,8 @@ except Exception:
 stack_profile = {}
 if cwd:
     try:
-        from stack_scanner import get_stack_profile
-        stack_profile = get_stack_profile(cwd) or {}
+        from stack_scanner import load_stack_profile
+        stack_profile = load_stack_profile() or {}
     except Exception:
         pass
 print(json.dumps(build_recommendation_list(sys.argv[1], context_snippet=sys.argv[2], cc_tool=sys.argv[4], category_id=sys.argv[5], cc_tool_type=sys.argv[6], stack_profile=stack_profile)))
@@ -351,7 +380,16 @@ print(json.dumps({
         --max-time 2 >/dev/null 2>&1 &
 fi
 
-[ "$SHOULD_BLOCK" != "yes" ] && exit 0
+DC_BLUE=$'\033[94m'
+DC_GREEN=$'\033[92m'
+DC_GRAY=$'\033[90m'
+DC_RESET=$'\033[0m'
+
+if [ "$SHOULD_BLOCK" != "yes" ]; then
+    # Provenance: confirm to user that Dispatch audited this tool call
+    echo "${DC_BLUE}[Dispatch]${DC_RESET} ${DC_GREEN}✓${DC_RESET} ${CC_TOOL:-${TOOL_NAME}} checked — ${DC_GREEN}best available${DC_RESET} ${DC_GRAY}for ${CATEGORY:-this} task${DC_RESET}"
+    exit 0
+fi
 
 # ── Write bypass token so 'proceed' re-attempt passes through ─────────────
 python3 -c "
@@ -373,76 +411,79 @@ write_last_suggested(sys.argv[2])
 python3 - "$CC_TOOL" "$RECOMMENDATIONS" "$TASK_TYPE" "$CC_TOOL_TYPE" <<'PYEOF'
 import json, sys
 
-cc_tool    = sys.argv[1]
+BLUE   = '\033[94m'
+YELLOW = '\033[93m'
+GRAY   = '\033[90m'
+GREEN  = '\033[92m'
+RESET  = '\033[0m'
+
+cc_tool      = sys.argv[1]
 cc_tool_type = sys.argv[4] if len(sys.argv) > 4 else "skill"
 try:
     recs = json.loads(sys.argv[2])
 except Exception:
     recs = {"all": [], "top_pick": None, "cc_score": 0}
-task_type = sys.argv[3]
+task_type    = sys.argv[3]
 task_display = task_type.replace("-", " ").title()
 
 all_tools = recs.get("all", [])
-top_pick = recs.get("top_pick") or (all_tools[0] if all_tools else None)
-cc_score = recs.get("cc_score", 0)
+top_pick  = recs.get("top_pick") or (all_tools[0] if all_tools else None)
+cc_score  = recs.get("cc_score", 0)
 
-# Infer the display label for CC's tool type
 cc_type_label = {"mcp": "MCP server", "agent": "Agent", "skill": "Skill"}.get(cc_tool_type, "Skill")
 
 lines = [
-    f"[DISPATCH] Intercepted: CC is about to use '{cc_tool}' ({cc_type_label}) for {task_display}.",
-    f"CC's tool score for this task: {cc_score}/100",
+    f"{BLUE}[Dispatch] Intercepted:{RESET} CC is about to use {YELLOW}'{cc_tool}'{RESET} ({cc_type_label}) for {task_display}.",
+    f"{GRAY}CC's tool score for this task: {cc_score}/100{RESET}",
     "",
-    "Marketplace alternatives:",
+    f"{BLUE}Marketplace alternatives:{RESET}",
 ]
 
 for i, tool in enumerate(all_tools, 1):
-    name = tool.get("name", "")
-    score = tool.get("score", "?")
-    reason = tool.get("reason", "")
+    name        = tool.get("name", "")
+    score       = tool.get("score", "?")
+    reason      = tool.get("reason", "")
     install_cmd = (tool.get("install_cmd") or "").replace("\n", " ").strip()
     install_url = (tool.get("install_url") or "").replace("\n", " ").strip()
-    top_marker = " ← TOP PICK" if (top_pick and name == top_pick.get("name")) else ""
+    top_marker  = f" {GREEN}← TOP PICK{RESET}" if (top_pick and name == top_pick.get("name")) else ""
 
-    # Infer tool type from name prefix for display
     if name.startswith("mcp:"):
-        tool_label = "MCP"
-        display_name = name[4:]  # strip "mcp:" prefix for readability
+        tool_label   = "MCP"
+        display_name = name[4:]
     elif name.startswith("plugin:"):
-        parts = name.split(":", 2)
-        tool_label = "Plugin"
+        parts        = name.split(":", 2)
+        tool_label   = "Plugin"
         display_name = parts[2] if len(parts) > 2 else name
     else:
-        tool_label = "Skill"
+        tool_label   = "Skill"
         display_name = name
 
-    lines.append(f"  {i}. {display_name} [{tool_label}] [{score}/100]{top_marker}")
+    lines.append(f"  {i}. {BLUE}{display_name}{RESET} [{tool_label}] {GRAY}[{score}/100]{RESET}{top_marker}")
     if reason:
-        lines.append(f"     Why: {reason}")
+        lines.append(f"     {GRAY}Why: {reason}{RESET}")
     if install_cmd:
-        lines.append(f"     Install + restart: {install_cmd} && claude")
+        lines.append(f"     {GRAY}Install + restart: {install_cmd} && claude{RESET}")
     elif install_url and tool_label == "MCP":
-        lines.append(f"     Install guide: {install_url}")
+        lines.append(f"     {GRAY}Install guide: {install_url}{RESET}")
     if install_url and not (tool_label == "MCP" and not install_cmd):
-        lines.append(f"     More info: {install_url}")
+        lines.append(f"     {GRAY}More info: {install_url}{RESET}")
 
 if top_pick:
     tp_name = top_pick.get("name", "")
     if tp_name.startswith("mcp:"):
         top_display = tp_name[4:]
-        top_type = "mcp"
+        top_type    = "mcp"
     elif tp_name.startswith("plugin:"):
-        parts = tp_name.split(":", 2)
+        parts       = tp_name.split(":", 2)
         top_display = parts[2] if len(parts) > 2 else tp_name
-        top_type = "plugin"
+        top_type    = "plugin"
     else:
         top_display = tp_name
-        top_type = "skill"
+        top_type    = "skill"
 else:
     top_display = "the top tool"
-    top_type = "skill"
+    top_type    = "skill"
 
-# Install instruction varies by top tool type
 if top_type == "mcp":
     install_line = f"  2. Configure {top_display} — add it to .mcp.json, then restart CC"
 elif top_type == "plugin":
@@ -452,16 +493,26 @@ else:
 
 lines.extend([
     "",
-    f"⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.",
+    f"{YELLOW}⚠ A marketplace tool scores higher than '{cc_tool}' ({cc_type_label}) for this task.{RESET}",
     "  Options:",
-    f"  1. Say 'proceed' to continue with '{cc_tool}' (one-time bypass, no restart needed)",
+    f"  1. Say {GREEN}'proceed'{RESET} to continue with '{cc_tool}' (one-time bypass, no restart needed)",
     install_line,
     "  3. Ignore Dispatch for this task — say 'skip dispatch'",
     "",
-    "Present these options to the user. Wait for their response before taking any action.",
+    f"{GRAY}Present these options to the user. Wait for their response before taking any action.{RESET}",
 ])
 
 print("\n".join(lines))
 PYEOF
+
+# Increment session block counter
+if [ -n "$SESSION_ID" ]; then
+    python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import increment_session_counter
+increment_session_counter('session_blocks', sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$SESSION_ID" 2>/dev/null || true
+fi
 
 exit 2

@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="Dispatch Icon.png" alt="Dispatch" width="120" />
+  <img src="Dispatch Icon.png" alt="ToolDispatch" width="120" />
 </p>
 
-# Dispatch
+# ToolDispatch
 
 <p align="center">
-  <a href="https://github.com/VisionAIrySE/Dispatch/stargazers"><img src="https://img.shields.io/github/stars/VisionAIrySE/Dispatch?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/ToolDispatch/Dispatch/stargazers"><img src="https://img.shields.io/github/stars/ToolDispatch/Dispatch?style=social" alt="GitHub Stars"></a>
   &nbsp;
   <img src="https://img.shields.io/badge/python-3.8+-blue" alt="Python 3.8+">
   &nbsp;
@@ -14,19 +14,29 @@
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code-orange" alt="Works with Claude Code">
 </p>
 
-**You don't know what you don't know. Neither does Claude Code.**
+**Your Claude Code insurance policy — best tool for the job up front, code that connects before it breaks.**
 
-10,000+ tools exist for Claude Code across plugins, skills, and MCP servers. You use the same handful every session. Claude picks from defaults. The best tool for what you're actually building right now — you've probably never heard of it.
+ToolDispatch puts the best tool in Claude's hands at the right moment. XF Audit ensures the code it produces actually connects. One platform. Both sides of the problem. And it leaves a record of everything it did.
 
-Dispatch fixes this two ways: it proactively surfaces the right tools when your task shifts, and intercepts when Claude reaches for a weaker one. All major decisions are logged with `provenance` markers for transparency.
+**Dispatch** covers the first half: 10,000+ tools exist for Claude Code across plugins, skills, and MCP servers. New ones ship every week. Claude picks from defaults. The best tool for what you're actually building right now — you've probably never heard of it. Dispatch fixes this by proactively surfacing the right tools when your task shifts, and intercepting when Claude reaches for a weaker one. All decisions are logged with `[PROVENANCE]` markers for transparency.
 
-> 10,000 tools out there for Claude Code. Are you using the best ones?
+**XF Audit** covers the second half: Claude Code produces architecturally sound code that often doesn't connect. It renames a function and misses three callers. It calls a function with the wrong number of arguments. These failures are silent until runtime — and by then the session context is gone. XF Audit closes that loop at the edit boundary, where the cost of fixing is near-zero and the context is still live.
+
+> One platform. Both sides of the problem. And it leaves a receipt.
 
 ---
 
-## What it actually does
+## The two modules
 
-Dispatch runs as two Claude Code hooks wired together:
+### Dispatch — tool routing
+
+Dispatch runs as three Claude Code hooks wired together:
+
+**Hook 3 — fires when the session ends.** Prints a one-line digest so you can see Dispatch was running the whole time — even when it correctly stayed silent. Example:
+
+```
+[Dispatch] Session: 12 tool calls audited · 0 blocked (all optimal) · 1 recommendation shown
+```
 
 **Hook 1 — fires on every message you send.** Sends your last few messages to a small model for ~100ms. If it detects a task shift (you moved from debugging a Flutter widget to writing tests, say), it maps the shift to a category and immediately surfaces grouped tool recommendations into Claude's context (Stage 3). Recommendations are grouped by type: Plugins, Skills, and MCPs. You see them once per topic per session.
 
@@ -76,10 +86,43 @@ If no marketplace tool beats Claude's choice by 10+ points, Dispatch exits silen
 
 ---
 
+### XF Audit — contract checking
+
+XF Audit fires on every Edit and Write. Most of the time, Stage 1 completes in ~200ms and you see a green stamp:
+
+```
+◈ XF Audit  47 modules · 203 edges checked  ✓ 0 boundary violations
+```
+
+When something is actually wrong:
+
+```
+◈ XF Audit  This edit will break at runtime.
+
+  evaluator.py:203 — calls rank_tools() with 3 arguments, but it only accepts 2.
+  This will throw a TypeError when that code runs.
+
+  Fix: remove the third argument, or update rank_tools() to accept it.
+  [apply fix] [show me the diff first] [skip]
+```
+
+The four stages:
+
+- **Stage 1** (~200ms, always): AST scan — syntax, missing imports, arity mismatches, hard env var access, consumed stubs. Blocks immediately on violations.
+- **Stage 2** (on escalation): Xpansion cascade analysis — maps the full caller chain using MECE boundary framework (DATA, NODES, FLOW, ERRORS). Shows consequence-first output.
+- **Stage 3**: Concrete repair plan — each violation gets one specific file-and-line fix.
+- **Stage 4**: Graduated consent — "show me the diff first" until two verified repairs this session, then "apply all" unlocks. Resets each session.
+
+**Refactor Mode:** `/xfa-refactor start "description"` — XF Audit shifts from blocking to tracking, holds violations until you declare done, presents consolidated repair list at once.
+
+Every scan leaves a record in `.xf/boundary_violations.json`. Every repair is logged to `.xf/repair_log.json` with timestamp and session ID. When something goes wrong in production: the log answers whether XF Audit caught it.
+
+---
+
 ## Install
 
 ```bash
-git clone https://github.com/VisionAIrySE/Dispatch.git
+git clone https://github.com/ToolDispatch/Dispatch.git
 cd Dispatch
 chmod +x install.sh
 ./install.sh
@@ -93,13 +136,28 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 ## Plans
 
+### BYOK / Open Source — for developers who need full local control
+
+```bash
+git clone https://github.com/ToolDispatch/Dispatch.git
+cd Dispatch && ./install.sh
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+- **Dispatch:** fully functional, unlimited, self-managed API key
+- **XF Audit:** Stage 1 bundled (pure AST, zero API cost) — catches broken imports, arity mismatches, syntax errors on every Edit/Write
+- **Stages 2–4:** upgrade prompt fires in session digest when Stage 2 would have been useful — one line, never mid-conversation, never blocking: `◈ XF Audit would have mapped that cascade. tooltooldispatch.visionairy.biz/pro`
+
+No account needed. Everything runs locally. You lose the catalog network intelligence, Sonnet ranking, and the dashboard.
+
+---
+
 ### Free — start here
 
-[Sign up with GitHub](https://dispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
+[Sign up with GitHub](https://tooltooldispatch.visionairy.biz/auth/github) — no API key, no card required. `install.sh` will ask for your token. Takes 30 seconds.
 
-- 8 interceptions/day
-- Full proactive recommendations on every task shift
-- Live marketplace search across skills, plugins, and MCPs
+- **Dispatch:** 8 interceptions/day + full proactive recommendations on every task shift
+- **XF Audit:** Stage 1 always-on (bundled), Stages 2–4 tier-blocked with in-context upgrade prompt when Stage 2 events occurred
 
 **What leaves your machine:** your last ~3 messages and working directory path, sent to classify the task. Not stored — we keep your GitHub username, usage count, and task type labels (e.g., `flutter-fixing`). No conversation content.
 
@@ -107,46 +165,28 @@ Start a **new** Claude Code session after install — hooks load at session star
 
 ### Pro — $10/month
 
-> **Founding Dispatcher offer:** First 300 subscribers lock in **$6/month for life**. After 300, standard rate applies.
+> **Founding offer:** First 300 subscribers lock in **$6/month for life**. After 300, standard rate applies.
 
-[Upgrade at dispatch.visionairy.biz/pro](https://dispatch.visionairy.biz/pro)
+[Upgrade at tooltooldispatch.visionairy.biz/pro](https://tooltooldispatch.visionairy.biz/pro)
 
-- **Unlimited interceptions**
-- **Sonnet for ranking** — sharper scores, better reasons, fewer misses
-- **Pre-ranked catalog** — 6 sources crawled daily and scored from real install data and GitHub signal. Not a live search — a ranked view of what actually works
-- **Network intelligence** — every confirmed install across all Pro users feeds back into catalog scores. The longer you run it, the better it gets at knowing which tools work for your exact stack
-- **<200ms intercept responses** — instant, no live search latency
-- **Full dashboard** — interception history, block rate, top tools, conversion tracking
+- **Dispatch:** unlimited interceptions, Sonnet ranking, pre-ranked catalog
+- **XF Audit:** full Stages 1–4 (Xpansion cascade analysis, concrete repair plan, graduated consent flow, repair log)
+- **Dashboard:** interception history, contract repair history, provenance log
 
-The catalog is the compounding advantage. A solo BYOK install is blind — it sees a live snapshot of the marketplace and nothing else. The hosted version sees what thousands of developers actually installed after a Dispatch suggestion, which tools they bypassed, and which ones stuck. That signal builds over time and no local setup can replicate it.
+The catalog is the compounding advantage. The hosted version sees what thousands of developers actually installed after a Dispatch suggestion, which tools they bypassed, and which ones stuck. That signal builds over time and no local setup can replicate it.
 
----
-
-### BYOK — for developers who need full local control
-
-If your security policy requires that zero data leaves your machine:
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
-No account needed. Everything runs locally — classification, ranking, recommendations. You lose the collective catalog intelligence, the pre-ranked database, Sonnet ranking, and the dashboard. What you get is a fully air-gapped setup that works entirely on your machine.
-
-Most developers don't need this. If you're not in a restricted environment, [start with Free](https://dispatch.visionairy.biz/auth/github).
-
-| | Free | Pro | BYOK |
+| | BYOK | Free | Pro |
 |---|---|---|---|
-| **Proactive recommendations** | ✓ | ✓ | ✓ |
-| **Interceptions/day** | 8 | Unlimited | Unlimited |
-| **Recommendation quality** | Good | Best | Configurable* |
-| **Catalog sources** | 3, live search (~2–4s) | 6, pre-ranked (<200ms) | 3, live search (~2–4s) |
-| **Network intelligence** | — | ✓ | — |
-| **Dashboard** | — | ✓ | — |
-| **Cost** | Free | $10/month | API costs |
-| **Data sharing** | Task labels only | Task labels only | None |
-| **Setup** | GitHub login, 30s | GitHub login, 30s | Manual API key |
-
-*BYOK ranking quality depends on your model. Set `OPENROUTER_API_KEY` for free inference or `ANTHROPIC_API_KEY` for Haiku. Override with any model in `~/.claude/dispatch/config.json`.
+| **Dispatch — proactive recs** | ✓ | ✓ | ✓ |
+| **Dispatch — interceptions** | Unlimited | 8/day | Unlimited |
+| **Dispatch — ranking quality** | Configurable | Good | Best (Sonnet) |
+| **Dispatch — catalog** | Live search | Live search | Pre-ranked, 6 sources |
+| **XF Audit — Stage 1** | ✓ | ✓ | ✓ |
+| **XF Audit — Stages 2–4** | Upgrade prompt | Upgrade prompt | ✓ Full |
+| **Dashboard** | — | — | ✓ |
+| **Network intelligence** | — | — | ✓ |
+| **Cost** | API costs | Free | $10/month |
+| **Data sharing** | None | Task labels only | Task labels only |
 
 ---
 
@@ -284,7 +324,7 @@ Removes all installed files, hook scripts, and settings.json entries automatical
 
 **BYOK:** Haiku calls go directly from your machine to Anthropic. Nothing passes through our servers.
 
-**Hosted (Free and Pro):** The following data is sent to and stored at dispatch.visionairy.biz:
+**Hosted (Free and Pro):** The following data is sent to and stored at tooldispatch.visionairy.biz:
 
 | Data | Stored? | Notes |
 |------|---------|-------|
@@ -300,7 +340,7 @@ We don't store conversation content. We don't sell individual user data. Aggrega
 
 **Creator outreach:** When the daily catalog crawl finds a skill with install activity but no description, Dispatch may open a GitHub issue on that repo asking the creator to add a description. At most once per repo per 30 days. Issues include a note that the creator can close with no action required.
 
-To delete your account and all stored data, email dispatch@visionairy.biz. To stop all data sharing immediately, switch to BYOK mode.
+To delete your account and all stored data, email hello@tooldispatch.visionairy.biz. To stop all data sharing immediately, switch to BYOK mode.
 
 ---
 
@@ -319,11 +359,11 @@ Pull requests welcome.
 
 ## Why this exists
 
-The Claude Code plugin ecosystem is genuinely underutilized. Most developers install a handful of tools and forget the rest exist. The problem isn't that good tools aren't available — it's that you have to already know what you need, and remember to reach for it, mid-session, while you're focused on something else.
+Two problems define every Claude Code session. The first: the tool ecosystem is enormous and growing, but Claude picks from defaults. You're always flying blind on tool selection. The second: Claude Code produces architecturally sound code that often doesn't connect — renames a function and misses three callers, calls with the wrong arguments, imports a symbol that was refactored away. These failures are silent until runtime.
 
-Dispatch is the runtime layer that was missing. It knows what you're doing because it reads your conversation. It knows what's available because it searches the marketplace. It connects them automatically — proactively surfacing options when you shift tasks, and blocking when Claude is about to reach for something weaker.
+ToolDispatch covers both sides. Dispatch is the runtime layer that ensures Claude reaches for the best tool. XF Audit is the safety net that ensures the code those tools produce actually connects. One install. Both problems. And it leaves a record of everything it did — so when something goes wrong in production, you can answer: did we catch this?
 
-The hosted version knows something a local install can never know: what tools thousands of other developers actually reached for when they were doing exactly what you're doing right now — and which ones they kept. That signal compounds over time. [Start free.](https://dispatch.visionairy.biz/auth/github)
+The hosted version knows something a local install can never know: what tools thousands of other developers actually reached for when they were doing exactly what you're doing right now — and which ones they kept. That signal compounds over time. [Start free.](https://tooldispatch.visionairy.biz/auth/github)
 
 Built by [Visionairy](https://visionairy.biz). If you're getting serious about AI developer tooling, also check out [Vib8](https://vib8.ai) — AI-powered competitive intelligence for founders.
 
@@ -331,7 +371,7 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 
 ## Roadmap
 
-- [x] Hosted endpoint (dispatch.visionairy.biz)
+- [x] Hosted endpoint (tooldispatch.visionairy.biz)
 - [x] PreToolUse interception — blocks on 10+ point gap
 - [x] Category-first routing — 16 MECE categories
 - [x] Pre-ranked catalog — daily cron, signal-scored (installs/stars/forks/freshness)
@@ -343,7 +383,8 @@ Built by [Visionairy](https://visionairy.biz). If you're getting serious about A
 - [x] `/dispatch status` command
 - [x] Proactive recommendations — grouped by type (Plugins/Skills/MCPs) at task shift (Stage 3)
 - [x] Hosted proactive recommendations for Free and Pro
-- [ ] skills.sh distribution (`npx skills add VisionAIrySE/Dispatch`)
+- [x] Session digest — Stop hook shows what Dispatch did each session
+- [ ] skills.sh distribution (`npx skills add ToolDispatch/Dispatch`)
 - [ ] CC marketplace submission
 - [ ] Weekly new-tool digest email for Pro users
 - [ ] Aggregate insights API (category trends, CC gap analysis)

@@ -9,7 +9,9 @@
 # Stage 2: Store task context for PreToolUse hook (only on confirmed shift)
 # =============================================================================
 
-set -uo pipefail
+# Intentionally no set -e or set -o pipefail — hook must never crash and block Claude.
+# All individual commands have || fallbacks. Safety net catches any unhandled exit.
+trap 'exit 0' ERR
 
 # Provenance logging function
 log_decision() {
@@ -33,12 +35,18 @@ trap 'rm -f "${CLASSIFY_TMP:-}" 2>/dev/null' EXIT
 # Extract current prompt from hook JSON — avoids transcript timing lag (CC writes
 # the current message to transcript AFTER the hook fires, not before)
 CURRENT_PROMPT=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('prompt',''))" "$HOOK_INPUT" 2>/dev/null || echo "")
+SESSION_ID=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('session_id',''))" "$HOOK_INPUT" 2>/dev/null || echo "")
 # Skip short follow-ups immediately, before any API calls ("Tool loaded.", "ok", "yes", etc.)
 CURRENT_WORD_COUNT=$(echo "$CURRENT_PROMPT" | wc -w)
 [ "${CURRENT_WORD_COUNT:-0}" -lt 3 ] && exit 0
 
-# Brand icon: blue ◎ (U+25CE) via ANSI — radar sweep target in terminal
+# Brand icon + color palette — Dispatch blue (#4F8EF7 → nearest ANSI: bright blue)
 DICON=$'\033[94m◎\033[0m'
+DC_BLUE=$'\033[94m'    # Dispatch brand blue — headers, icon
+DC_GRAY=$'\033[90m'    # Secondary info — scores, metadata, install cmds
+DC_GREEN=$'\033[92m'   # Confirmed ✓ / success
+DC_YELLOW=$'\033[93m'  # Warnings, blocks, limit notices
+DC_RESET=$'\033[0m'    # Always reset after any color
 
 # notify MSG — write to /dev/tty if available, else stdout (CC injects into context)
 notify() {
@@ -79,7 +87,7 @@ except Exception:
     try: os.unlink(tmp)
     except: pass
 " 2>/dev/null || true
-    echo "[Dispatch is active. When you start a new type of task, it will recommend the best available plugins, skills, and MCPs — right here in context, grouped by type. Not sure which to pick? Just ask.]"
+    echo "${DC_BLUE}[Dispatch is active. When you start a new type of task, it will recommend the best available plugins, skills, and MCPs — right here in context, grouped by type. Not sure which to pick? Just ask.]${DC_RESET}"
 fi
 
 # ── Load hosted config (token + endpoint) ─────────────────────────────────
@@ -231,13 +239,13 @@ except:
     print('https://dispatch.visionairy.biz/pro')
 " "$HTTP_BODY" 2>/dev/null || echo "https://dispatch.visionairy.biz/pro")
         W=52
-        SEP=$(printf '━%.0s' $(seq 1 $W))
+        SEP="${DC_YELLOW}$(printf '━%.0s' $(seq 1 $W))${DC_RESET}"
         notify "
 $SEP
- ${DICON} Dispatch  →  Task shift detected
+ ${DICON} ${DC_BLUE}Dispatch${DC_RESET}  →  ${DC_YELLOW}Task shift detected${DC_RESET}
 $SEP
- You've used your 8 free detections today.
- Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL
+ ${DC_YELLOW}You've used your 8 free detections today.${DC_RESET}
+ ${DC_GRAY}Upgrade for unlimited + Sonnet ranking — \$10/month → $UPGRADE_URL${DC_RESET}
 $SEP"
         # Set cooldown: suppress for next 5 triggers
         python3 -c "
@@ -288,11 +296,11 @@ except Exception:
             exit 0
         fi
         W=52
-        SEP=$(printf '━%.0s' $(seq 1 $W))
+        SEP="${DC_YELLOW}$(printf '━%.0s' $(seq 1 $W))${DC_RESET}"
         notify "
 $SEP
- ${DICON} Dispatch  →  Token invalid or expired
- Re-authenticate: $DISPATCH_ENDPOINT/token-lookup
+ ${DICON} ${DC_BLUE}Dispatch${DC_RESET}  →  ${DC_YELLOW}Token invalid or expired${DC_RESET}
+ ${DC_GRAY}Re-authenticate: $DISPATCH_ENDPOINT/token-lookup${DC_RESET}
 $SEP"
         python3 -c "
 import json, sys, os, tempfile
@@ -498,8 +506,8 @@ try:
         from interceptor import STATE_FILE
         cwd = json.load(open(STATE_FILE)).get('last_cwd', '')
         if cwd:
-            from stack_scanner import get_stack_profile
-            stack_profile = get_stack_profile(cwd) or {}
+            from stack_scanner import load_stack_profile
+            stack_profile = load_stack_profile() or {}
     except Exception:
         pass
 
@@ -523,7 +531,7 @@ try:
         print('')
         sys.exit(0)
 
-    def fmt_tool(t):
+    def fmt_tool(t, GRAY='', RESET=''):
         name = t.get('name', '')
         reason = (t.get('reason', '') or '').rstrip('.')
         install_cmd = t.get('install_cmd', '')
@@ -538,32 +546,37 @@ try:
             display = name
         lines = [f'  \u2022 {display} \u2014 {reason}.']
         if install_cmd:
-            lines.append(f'    Install: {install_cmd}')
+            lines.append(f'    {GRAY}Install: {install_cmd}{RESET}')
         return '\n'.join(lines)
 
     sections = []
-    sections.append(f'[Dispatch] Recommended tools for this {task_type} task:')
+    BLUE  = '\033[94m'
+    GRAY  = '\033[90m'
+    GREEN = '\033[92m'
+    RESET = '\033[0m'
+
+    sections.append(f'{BLUE}[Dispatch] Recommended tools for this {task_type} task:{RESET}')
 
     if plugins:
         sections.append('')
-        sections.append('Plugins:')
+        sections.append(f'{BLUE}Plugins:{RESET}')
         for t in plugins:
-            sections.append(fmt_tool(t))
+            sections.append(fmt_tool(t, GRAY, RESET))
 
     if skills:
         sections.append('')
-        sections.append('Skills:')
+        sections.append(f'{BLUE}Skills:{RESET}')
         for t in skills:
-            sections.append(fmt_tool(t))
+            sections.append(fmt_tool(t, GRAY, RESET))
 
     if mcps:
         sections.append('')
-        sections.append('MCPs:')
+        sections.append(f'{BLUE}MCPs:{RESET}')
         for t in mcps:
-            sections.append(fmt_tool(t))
+            sections.append(fmt_tool(t, GRAY, RESET))
 
     sections.append('')
-    sections.append('Not sure which to pick? Ask me \u2014 I can explain the differences.')
+    sections.append(f'{GREEN}Not sure which to pick? Ask me \u2014 I can explain the differences.{RESET}')
 
     print('\n'.join(sections))
 
@@ -581,6 +594,14 @@ sys.path.insert(0, sys.argv[1])
 from interceptor import write_last_recommended_category
 write_last_recommended_category(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$CATEGORY" 2>/dev/null || true
+        if [ -n "$SESSION_ID" ]; then
+            python3 -c "
+import sys
+sys.path.insert(0, sys.argv[1])
+from interceptor import increment_session_counter
+increment_session_counter('session_recommendations', sys.argv[2])
+" "$SKILL_ROUTER_DIR" "$SESSION_ID" 2>/dev/null || true
+        fi
     fi
 fi
 

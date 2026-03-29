@@ -1,6 +1,10 @@
-# Dispatch User Guide
+# ToolDispatch User Guide
 
-**Dispatch** — proactive tool discovery and protective intercept for Claude Code. Surfaces the best plugin, skill, or MCP when you shift tasks, and blocks tool calls when a better marketplace alternative exists.
+**ToolDispatch** — your Claude Code insurance policy. Two modules that cover both sides of the problem.
+
+**Dispatch** surfaces the best plugin, skill, or MCP when you shift tasks, and blocks tool calls when a better marketplace alternative exists. **XF Audit** catches broken module contracts before they run — syntax errors, missing imports, arity mismatches, broken function signatures — and provides a concrete repair plan with graduated consent.
+
+You don't know what you don't know. Neither does Claude Code. And the ecosystem is exploding — new tools ship every week, the gap between what you're using and what's out there grows every day. And Claude Code produces architecturally sound code that often doesn't connect. ToolDispatch covers both problems, leaves a record, and gets out of the way.
 
 ---
 
@@ -9,7 +13,7 @@
 ### 1. Install
 
 ```bash
-git clone https://github.com/VisionAIrySE/Dispatch.git
+git clone https://github.com/ToolDispatch/Dispatch.git
 cd Dispatch
 bash install.sh
 ```
@@ -24,12 +28,12 @@ bash install.sh
 When `install.sh` asks for a token, visit:
 
 ```
-https://dispatch.visionairy.biz/auth/github
+https://tooldispatch.visionairy.biz/auth/github
 ```
 
 Sign in with GitHub. Copy the token shown on screen and paste it into the install prompt.
 
-**Already installed and need your token?** Visit `https://dispatch.visionairy.biz/token-lookup` — it re-runs OAuth and shows your token again.
+**Already installed and need your token?** Visit `https://tooldispatch.visionairy.biz/token-lookup` — it re-runs OAuth and shows your token again.
 
 ### 3. Start a new CC session
 
@@ -148,18 +152,18 @@ Shows:
 
 ## Your account
 
-**Account page:** `https://dispatch.visionairy.biz/account`
+**Account page:** `https://tooldispatch.visionairy.biz/account`
 - See your plan and quota
 - Copy your token
 - Manage billing (Pro users get a Stripe portal link)
 
-**Dashboard (Pro):** `https://dispatch.visionairy.biz/dashboard?token=YOUR_TOKEN`
+**Dashboard (Pro):** `https://tooldispatch.visionairy.biz/dashboard?token=YOUR_TOKEN`
 - Interception history
 - Block rate
 - Top tools suggested
 - Install conversions (tools you installed after a suggestion)
 
-**Upgrade to Pro:** `https://dispatch.visionairy.biz/pro?token=YOUR_TOKEN`
+**Upgrade to Pro:** `https://tooldispatch.visionairy.biz/pro?token=YOUR_TOKEN`
 - **$6/month** for the first 300 users (Founding Dispatcher — locked for life) — unlimited interceptions, Sonnet ranking, pre-ranked catalog, full dashboard
 - $10/month standard after founding tier fills
 
@@ -180,7 +184,7 @@ Shows:
 
 **Founding Dispatcher:** First 300 paying users lock in $6/month for life. Once the founding tier fills, new signups pay standard $10/month.
 
-*BYOK is for developers in air-gapped or restricted environments who cannot send any data to external services. BYOK ranking quality depends on your model — set `OPENROUTER_API_KEY` for free inference or `ANTHROPIC_API_KEY` for Haiku. Override with any model in `~/.claude/dispatch/config.json`. If that's not you, [start with Free](https://dispatch.visionairy.biz/auth/github) — it's easier, smarter, and actually free.
+*BYOK is for developers in air-gapped or restricted environments who cannot send any data to external services. BYOK ranking quality depends on your model — set `OPENROUTER_API_KEY` for free inference or `ANTHROPIC_API_KEY` for Haiku. Override with any model in `~/.claude/dispatch/config.json`. If that's not you, [start with Free](https://tooldispatch.visionairy.biz/auth/github) — it's easier, smarter, and actually free.
 
 ---
 
@@ -223,7 +227,7 @@ pip3 install anthropic --break-system-packages
 
 **Lost your token**
 
-Go to `https://dispatch.visionairy.biz/token-lookup` — signs you in with GitHub and shows your token.
+Go to `https://tooldispatch.visionairy.biz/token-lookup` — signs you in with GitHub and shows your token.
 
 **Want to uninstall**
 
@@ -239,7 +243,7 @@ Removes all files, hook scripts, and settings.json entries automatically.
 
 **BYOK mode:** all Haiku calls go directly from your machine to Anthropic. Nothing passes through Dispatch servers.
 
-**Hosted mode:** your last ~3 messages and working directory path are sent to `dispatch.visionairy.biz` for classification and immediately discarded. We store your GitHub username, task type labels (e.g. `flutter-fixing`), and tool scores. We do not store conversation content.
+**Hosted mode:** your last ~3 messages and working directory path are sent to `tooldispatch.visionairy.biz` for classification and immediately discarded. We store your GitHub username, task type labels (e.g. `flutter-fixing`), and tool scores. We do not store conversation content.
 
 Full privacy table in [README](../README.md#privacy). To delete your account, email dispatch@visionairy.biz.
 
