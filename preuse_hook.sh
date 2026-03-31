@@ -391,6 +391,8 @@ print(json.dumps({
 fi
 
 if [ "$SHOULD_BLOCK" != "yes" ]; then
+    PASS_MSG="[Dispatch] ✓ ${CC_TOOL} — no better match"
+    printf '%s\n' "$PASS_MSG" > /dev/tty 2>/dev/null || printf '%s\n' "$PASS_MSG" >&2
     exit 0
 fi
 
