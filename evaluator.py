@@ -187,11 +187,12 @@ Respond with ONLY valid JSON:
 Rules:
 - all: marketplace tools sorted by relevance score (0-100) descending
 - Only include tools with score >= 55 (caller applies final floor)
-- Limit to top 8 tools across all types (skills, MCPs, plugins) before caller trims
+- Limit to top 9 tools total, BUT ensure type diversity: include up to 3 plugins (id starts with "plugin:"), up to 3 MCPs (id starts with "mcp:"), up to 3 skills. If fewer than 3 exist of a type, include all relevant ones above the score floor.
+- IMPORTANT: plugins and MCPs are hosted integrations — score them 10 points higher than equivalent skills when directly relevant, because they require no installation and work instantly.
 - install_cmd: use provided hint exactly — do NOT fabricate
   - skills (format "owner/repo@name"): install_cmd = "npx skills add owner/repo@name -y"
   - MCPs (id starts with "mcp:"): omit install_cmd entirely
-  - plugins (id starts with "plugin:"): use provided install_cmd if present, else omit
+  - plugins (id starts with "plugin:"): omit install_cmd (plugins are activated in Claude Code settings, not via CLI)
 - Write specific reasons grounded in what the developer is actually doing
 - If no tools are relevant, return {"all": []}
 
@@ -437,32 +438,32 @@ def search_by_category(category_id: str, limit: int = 10) -> list:
     except Exception:
         pass
 
-    # 2. Official CC plugins — pre-mapped by category
+    # 2. Official CC plugins — pre-mapped by category (always included, not counted against skill limit)
+    plugins_to_add = []
     try:
         for plugin in _search_official_plugins(category_id):
             if plugin["id"] not in seen_ids:
                 seen_ids.add(plugin["id"])
-                results.append(plugin)
+                plugins_to_add.append(plugin)
     except Exception:
         pass
 
-    # 3. glama.ai MCPs — use mcp_search_terms (service names) if present,
-    #    otherwise fall back to first general search term
-    if len(results) < limit:
-        try:
-            mcp_terms = cat.get("mcp_search_terms") or []
-            glama_term = mcp_terms[0] if mcp_terms else cat.get("search_terms", [""])[0]
-            if glama_term:
-                for mcp in _search_glama(glama_term, limit=5):
-                    # Prefix with "mcp:" so type detection and display work correctly
-                    mcp_id = mcp["id"] if mcp["id"].startswith("mcp:") else f"mcp:{mcp['id']}"
-                    if mcp_id not in seen_ids:
-                        seen_ids.add(mcp_id)
-                        results.append({"id": mcp_id, "description": mcp.get("description", "")})
-        except Exception:
-            pass
+    # 3. glama.ai MCPs — always search (not gated on skill count), appended after limit like plugins
+    mcps_to_add = []
+    try:
+        mcp_terms = cat.get("mcp_search_terms") or []
+        glama_term = mcp_terms[0] if mcp_terms else cat.get("search_terms", [""])[0]
+        if glama_term:
+            for mcp in _search_glama(glama_term, limit=5):
+                # Prefix with "mcp:" so type detection and display work correctly
+                mcp_id = mcp["id"] if mcp["id"].startswith("mcp:") else f"mcp:{mcp['id']}"
+                if mcp_id not in seen_ids:
+                    seen_ids.add(mcp_id)
+                    mcps_to_add.append({"id": mcp_id, "description": mcp.get("description", "")})
+    except Exception:
+        pass
 
-    results = results[:limit]
+    results = results[:limit] + plugins_to_add + mcps_to_add
     # Enrich any skills missing descriptions — parallel GitHub fetch, cached 24h
     skills_only = [r for r in results if "@" in r.get("id", "") and not r.get("description", "").strip()]
     if skills_only:
@@ -758,7 +759,7 @@ def recommend_tools(
     try:
         # 1. Fetch candidates
         if category_id and category_id != "unknown":
-            candidates = search_by_category(category_id, limit=15)
+            candidates = search_by_category(category_id, limit=25)
         else:
             candidates = search_registry(task_type, limit=10)
 
@@ -806,12 +807,24 @@ Rank these tools for this {task_type} task."""
             system=RECOMMEND_SYSTEM_PROMPT,
             user=user_content,
             model=effective_model,
-            max_tokens=600,
+            max_tokens=1500,
         )
         if not text:
             return {"all": [], "by_type": {}, "top_pick": None}
 
-        parsed = json.loads(text)
+        # Resilient parse: recover complete tool objects even if response is truncated
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            import re as _re
+            tool_matches = _re.findall(r'\{[^{}]*"score"[^{}]*\}', text, _re.DOTALL)
+            recovered = []
+            for m in tool_matches:
+                try:
+                    recovered.append(json.loads(m))
+                except json.JSONDecodeError:
+                    pass
+            parsed = {"all": recovered}
         all_tools = parsed.get("all", [])
 
         # 4. Apply score floor (safe cast: handle float scores)

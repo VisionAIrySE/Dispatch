@@ -1,0 +1,4 @@
+anthropic
+openai
+requests
+pytest

@@ -23,8 +23,15 @@ Three-hook pipeline:
 - Intercepts: `Skill`, `Agent`, `mcp__*` tool calls — passes through everything else
 - Reads task category from `state.json` (written by dispatch.sh)
 - Searches marketplace by category terms (more targeted than keyword split)
-- Scores marketplace tools vs CC's chosen tool (Haiku/Sonnet 0–100)
-- Blocks (exit 2) if top marketplace tool ≥ cc_score + 10 points
+- Scores tools on three components: `relevance * 0.5 + signal * 0.3 + velocity * 0.2`
+  - **Relevance** — LLM pass 0–100 vs task context; tools with no description pre-scored 0
+  - **Signal** — installs 60% + stars 25% + forks 15%, log-scaled
+  - **Velocity** — install momentum relative to repo age, log-scaled
+- Blocks (exit 2) if `max_weighted` across all groups ≥ cc_score + 10 points
+- Block output grouped by type: Skills / MCPs / Plugins, up to 3 per group (9 max)
+  - Each tool shows raw installs/stars/forks + component scores
+  - No-description tools flagged `⚠ no description — install at your own risk`
+  - Caveat appended on every block (community signals, not a security audit)
 - Writes bypass token so user's "proceed" passes through without re-block
 - Increments `session_audits` on every intercept; `session_blocks` on exit 2
 
@@ -179,6 +186,8 @@ CC transcript JSONL entries are `{"type":"user", "isMeta":bool, "message":{"role
 
 ## Known Issues / History
 
+- **2026-03-30:** Scoring overhaul — grouped output (Skills/MCPs/Plugins, max 3 per type), three-component scoring (Relevance·Signal·Velocity), `max_weighted` block threshold, no-description flag + pre-score-0, caveat on every block. Npm contamination: 369 npm packages (`@langchain/core`, `react`, `vue`, `@react-native/*`) deleted from live DB; `crawl_all_skills` now rejects `source` starting with `@` or lacking `/`; `db.py get_catalog_tools` adds `npm_filter` defence-in-depth. SKILL.md enrichment: `_fetch_skill_description` tries `skills/{skill_name}/SKILL.md` → `{skill_name}/SKILL.md` → `README.md` — ~90% of real skills will pick up descriptions on next cron run. Velocity column migration runs at cron start (first run populates `velocity_score` + `repo_created_at`).
+- **2026-03-29:** Root cause of "only Superpowers": category_mapper returned None for dispatch-*/general-* task types → category="" → /rank skipped catalog → fell back to live skills.sh → Superpowers every time. Fixed: `_GENERIC_PREFIX_FALLBACK` dict + `_LOW_PRIORITY` set in category_mapper.py. FREE_RANKER_MODEL changed Nemotron 120B (28s, blew 10s timeout) → Mistral Nemo (~1s). `_fetch_skill_description` + 5s hard timeout in evaluator.py.
 - **2026-03-15:** v0.8.x MCP/plugin redesign — glama.ai MCP search with mcp_search_terms, official plugins (plugin:anthropic: prefix), community plugins (plugin:cc-marketplace: prefix), type-aware catalog UNION query, normalize_tool_name_for_matching for conversion tracking, stack_scanner detects .mcp.json MCP servers, mcp_servers filtering in both evaluators, catalog_by_id prefixed+unprefixed key lookup, get_weakness_map_by_type in db.py, classifier emits preferred_tool_type, write_last_cc_tool_type in interceptor.py, extract_cc_tool hardened for non-dict input. BUG-FIXED: dispatch.sh and preuse_hook.sh were writing/reading state.json to different directories (~/.claude/skill-router vs ~/.claude/dispatch). Fixed by syncing installed hook. ~/.claude/skill-router/ deleted.
 - **2026-03-14:** v0.7.0 — PreToolUse interception added. dispatch.sh now silent (Stage 1 + state write only). preuse_hook.sh intercepts Skill/Agent/mcp__* calls, scores marketplace alternatives vs CC's chosen tool, blocks on 10+ point gap. Category-first model: task_type maps to MECE category for targeted search. Unknown categories logged to unknown_categories.jsonl.
 - **2026-03-05:** Haiku markdown wrapping bug — fixed in classifier.py and evaluator.py

@@ -7,6 +7,20 @@ on:
     branches: [main]
 
 jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck hooks
+        run: |
+          shellcheck -S warning \
+            dispatch.sh \
+            preuse_hook.sh \
+            stop_hook.sh \
+            install.sh \
+            uninstall.sh
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -17,7 +31,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: python3 -m pip install pytest anthropic openai requests
+        run: python3 -m pip install -r requirements.txt
 
       - name: Run tests
         run: |
@@ -28,6 +42,7 @@ jobs:
             test_category_mapper.py \
             test_llm_client.py \
             test_stack_scanner.py \
+            test_boundaries.py \
             -v --tb=short
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

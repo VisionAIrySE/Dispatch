@@ -396,8 +396,6 @@ DC_GRAY=$'\033[90m'
 DC_RESET=$'\033[0m'
 
 if [ "$SHOULD_BLOCK" != "yes" ]; then
-    # Provenance: confirm to user that Dispatch audited this tool call
-    echo "${DC_BLUE}[Dispatch]${DC_RESET} ${DC_GREEN}✓${DC_RESET} ${CC_TOOL:-${TOOL_NAME}} checked — ${DC_GREEN}best available${DC_RESET} ${DC_GRAY}for ${CATEGORY:-this} task${DC_RESET}"
     exit 0
 fi
 

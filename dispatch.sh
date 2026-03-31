@@ -44,16 +44,15 @@ CURRENT_WORD_COUNT=$(echo "$CURRENT_PROMPT" | wc -w)
 DICON=$'\033[94m◎\033[0m'
 DC_BLUE=$'\033[94m'    # Dispatch brand blue — headers, icon
 DC_GRAY=$'\033[90m'    # Secondary info — scores, metadata, install cmds
-DC_GREEN=$'\033[92m'   # Confirmed ✓ / success
 DC_YELLOW=$'\033[93m'  # Warnings, blocks, limit notices
 DC_RESET=$'\033[0m'    # Always reset after any color
 
 # notify MSG — write to /dev/tty if available, else stdout (CC injects into context)
 notify() {
     if [ -w /dev/tty ] 2>/dev/null; then
-        printf '%s\n' "$1" > /dev/tty 2>/dev/null || printf '%s\n' "$1"
+        printf '%s\n' "$1" > /dev/tty 2>/dev/null || printf '%s\n' "$1" >&2
     else
-        printf '%s\n' "$1"
+        printf '%s\n' "$1" >&2
     fi
 }
 
@@ -490,45 +489,37 @@ sys.path.insert(0, sys.argv[1])
 task_type       = sys.argv[2]
 category_id     = sys.argv[3]
 context_snippet = sys.argv[4]
-preferred_type  = sys.argv[5] if len(sys.argv) > 5 else ''
 
 def _timeout_handler(signum, frame):
     raise TimeoutError('stage3 timeout')
 
 signal.signal(signal.SIGALRM, _timeout_handler)
-signal.alarm(4)
+signal.alarm(8)
 
 try:
-    from evaluator import recommend_tools
+    from evaluator import search_by_category
 
-    stack_profile = {}
-    cwd_basename = ''
-    try:
-        from interceptor import STATE_FILE
-        import os
-        cwd = json.load(open(STATE_FILE)).get('last_cwd', '')
-        if cwd:
-            cwd_basename = os.path.basename(cwd)
-            from stack_scanner import load_stack_profile
-            stack_profile = load_stack_profile() or {}
-    except Exception:
-        pass
-
-    result = recommend_tools(
-        task_type=task_type,
-        context_snippet=context_snippet,
-        category_id=category_id,
-        stack_profile=stack_profile,
-        preferred_type=preferred_type or None,
-        cwd_basename=cwd_basename or None,
-    )
+    raw = search_by_category(category_id, limit=15)
 
     signal.alarm(0)
 
-    by_type = result.get('by_type', {})
-    plugins = by_type.get('plugin', [])
-    skills  = by_type.get('skill', [])
-    mcps    = by_type.get('mcp', [])
+    plugins, skills, mcps = [], [], []
+
+    for item in raw:
+        tid = item.get('id', '')
+        desc = (item.get('description', '') or '').strip()
+        reason = desc[:120].rstrip('.').rstrip() if desc else 'Relevant to this task'
+
+        if tid.startswith('plugin:'):
+            if len(plugins) < 3:
+                plugins.append({'name': tid, 'reason': reason, 'install_cmd': ''})
+        elif tid.startswith('mcp:'):
+            if len(mcps) < 3:
+                mcps.append({'name': tid, 'reason': reason, 'install_cmd': ''})
+        else:
+            if len(skills) < 3:
+                install_cmd = f'npx skills add {tid} -y' if tid else ''
+                skills.append({'name': tid, 'reason': reason, 'install_cmd': install_cmd})
 
     # Only output if at least one section has results
     if not plugins and not skills and not mcps:
@@ -591,7 +582,7 @@ except Exception:
 " "$SKILL_ROUTER_DIR" "$TASK_TYPE" "$CATEGORY" "$CONTEXT_SNIPPET" "$PREFERRED_TOOL_TYPE" 2>/dev/null || echo "")
 
     if [ -n "$STAGE3_OUTPUT" ]; then
-        echo "$STAGE3_OUTPUT"
+        printf '%s\n' "$STAGE3_OUTPUT"
         python3 -c "
 import sys
 sys.path.insert(0, sys.argv[1])

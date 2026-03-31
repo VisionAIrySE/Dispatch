@@ -99,19 +99,22 @@ run_hook() {
 }
 
 mock_above_threshold() {
-    # evaluator returns cc_score=50, top tool score=80 (gap=30 >= threshold=10) → should block
+    # evaluator returns cc_score=50, max_weighted=80 (gap=30 >= threshold=10) → should block
     cat > "$SKILL_DIR/evaluator.py" << 'STUB'
 import json
 def build_recommendation_list(task_type, **kwargs):
     return {
-        "all": [
-            {"name": "stripe-mcp", "score": 80, "reason": "Native Stripe API coverage", "installed": False,
-             "install_cmd": "npx @stripe/mcp", "install_url": "https://github.com/stripe/mcp"}
-        ],
-        "top_pick": {"name": "stripe-mcp", "score": 80, "reason": "Native Stripe API coverage"},
-        "installed": [],
-        "suggested": [{"name": "stripe-mcp", "score": 80}],
-        "cc_score": 50
+        "skills": [{"name": "stripe-mcp", "relevance": 80, "signal": 70, "velocity": 60,
+                    "installs": 1000, "stars": 500, "forks": 50, "description": "Native Stripe API coverage",
+                    "install_cmd": "npx @stripe/mcp", "install_url": "https://github.com/stripe/mcp",
+                    "no_description": False}],
+        "mcps": [],
+        "plugins": [],
+        "all": [{"name": "stripe-mcp", "score": 80}],
+        "top_pick": {"name": "stripe-mcp", "score": 80},
+        "cc_score": 50,
+        "max_weighted": 80,
+        "caveat": ""
     }
 STUB
 }
@@ -209,10 +212,10 @@ run_scenario_4() {
     restore_config; restore_evaluator; restore_state
     if [ "$HOOK_EXIT" = "2" ]; then
         pass "Hook blocked (exit 2)"
-        if echo "$OUTPUT" | grep -q "\[DISPATCH\] Intercepted"; then
-            pass "Comparison output contains [DISPATCH] header"
+        if echo "$OUTPUT" | grep -q "\[Dispatch\] Intercepted"; then
+            pass "Comparison output contains [Dispatch] header"
         else
-            fail "Output missing [DISPATCH] header — got: $OUTPUT"
+            fail "Output missing [Dispatch] header — got: $OUTPUT"
         fi
         if echo "$OUTPUT" | grep -q "stripe-mcp"; then
             pass "Output names the marketplace alternative"
