@@ -4,12 +4,12 @@ from typing import Optional
 
 def send_slack_alert(message: str, channel: str, priority: str = "normal") -> bool:
     """Send alert to Slack channel. Returns True on success."""
-    ...
+    return True  # stub
 
 
 def send_pagerduty(message: str, severity: str, service_key: str) -> str:
     """Trigger PagerDuty incident. Returns incident ID."""
-    ...
+    return ""  # stub
 
 
 def format_alert(service_name: str, status: str, details: Optional[dict] = None) -> str:

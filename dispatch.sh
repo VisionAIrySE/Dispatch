@@ -394,13 +394,14 @@ log_unknown_category(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$TASK_TYPE" 2>/dev/null || true
 fi
 
-# ── Read last recommended category (once-per-category-per-session gate) ──
-LAST_RECOMMENDED_CATEGORY=$(python3 -c "
+# ── Read fired categories this session (once-per-category gate) ──────────
+ALREADY_FIRED=$(python3 -c "
 import sys
 sys.path.insert(0, sys.argv[1])
-from interceptor import get_last_recommended_category
-print(get_last_recommended_category())
-" "$SKILL_ROUTER_DIR" 2>/dev/null || echo "")
+from interceptor import get_fired_categories
+cats = get_fired_categories()
+print('yes' if sys.argv[2] in cats else 'no')
+" "$SKILL_ROUTER_DIR" "$CATEGORY" 2>/dev/null || echo "no")
 
 # ── Extract preferred tool type hint from classifier ──────────────────────
 PREFERRED_TOOL_TYPE=$(python3 -c "
@@ -481,7 +482,7 @@ fi
 # ── Stage 3: Proactive recommendations ────────────────────────────────────
 # Fires only when category changes (once-per-category-per-session).
 # Outputs grouped recommendations to stdout — CC injects before response.
-if [ "$CATEGORY" != "unknown" ] && [ "$CATEGORY" != "$LAST_RECOMMENDED_CATEGORY" ]; then
+if [ "$CATEGORY" != "unknown" ] && [ "$ALREADY_FIRED" != "yes" ]; then
     STAGE3_OUTPUT=$(python3 -c "
 import sys, json, signal
 sys.path.insert(0, sys.argv[1])
@@ -508,7 +509,7 @@ try:
     for item in raw:
         tid = item.get('id', '')
         desc = (item.get('description', '') or '').strip()
-        reason = desc[:120].rstrip('.').rstrip() if desc else 'Relevant to this task'
+        reason = desc[:65].rstrip('.').rstrip() if desc else 'Relevant to this task'
 
         if tid.startswith('plugin:'):
             if len(plugins) < 3:
@@ -526,23 +527,32 @@ try:
         print('')
         sys.exit(0)
 
-    def fmt_tool(t, GRAY='', RESET=''):
+    def fmt_tool(t, GRAY='', RESET='', BLUE=''):
         name = t.get('name', '')
         reason = (t.get('reason', '') or '').rstrip('.')
-        install_cmd = t.get('install_cmd', '')
-        # Display name: strip prefixes for readability
+        # Truncate reason to fit on one line
+        if len(reason) > 65:
+            reason = reason[:62] + '...'
+        # Build display with OSC 8 hyperlink for skills (owner/repo@skill-name → GitHub)
         if name.startswith('plugin:anthropic:'):
             display = name[len('plugin:anthropic:'):]
+            linked = f'{BLUE}{display}{RESET}'
+        elif name.startswith('plugin:cc-marketplace:'):
+            display = name[len('plugin:cc-marketplace:'):]
+            linked = f'{BLUE}{display}{RESET}'
         elif name.startswith('plugin:'):
             display = name[7:]
+            linked = f'{BLUE}{display}{RESET}'
         elif name.startswith('mcp:'):
             display = name[4:]
+            linked = f'{BLUE}{display}{RESET}'
+        elif '@' in name:
+            owner_repo, skill_name = name.rsplit('@', 1)
+            gh_url = f'https://github.com/{owner_repo}'
+            linked = f'\033]8;;{gh_url}\033\\{BLUE}{skill_name}{RESET}\033]8;;\033\\'
         else:
-            display = name
-        lines = [f'  \u2022 {display} \u2014 {reason}.']
-        if install_cmd:
-            lines.append(f'    {GRAY}Install: {install_cmd}{RESET}')
-        return '\n'.join(lines)
+            linked = f'{BLUE}{name}{RESET}'
+        return f'  \u2022 {linked} \u2014 {reason}'
 
     sections = []
     BLUE  = '\033[94m'
@@ -550,28 +560,25 @@ try:
     GREEN = '\033[92m'
     RESET = '\033[0m'
 
-    sections.append(f'{BLUE}[Dispatch] Recommended tools for this {task_type} task:{RESET}')
+    sections.append(f'{BLUE}[Dispatch] \u21b3 {task_type}:{RESET}')
 
     if plugins:
         sections.append('')
         sections.append(f'{BLUE}Plugins:{RESET}')
         for t in plugins:
-            sections.append(fmt_tool(t, GRAY, RESET))
+            sections.append(fmt_tool(t, GRAY, RESET, BLUE))
 
     if skills:
         sections.append('')
         sections.append(f'{BLUE}Skills:{RESET}')
         for t in skills:
-            sections.append(fmt_tool(t, GRAY, RESET))
+            sections.append(fmt_tool(t, GRAY, RESET, BLUE))
 
     if mcps:
         sections.append('')
         sections.append(f'{BLUE}MCPs:{RESET}')
         for t in mcps:
-            sections.append(fmt_tool(t, GRAY, RESET))
-
-    sections.append('')
-    sections.append(f'{GREEN}Not sure which to pick? Ask me \u2014 I can explain the differences.{RESET}')
+            sections.append(fmt_tool(t, GRAY, RESET, BLUE))
 
     print('\n'.join(sections))
 
@@ -586,8 +593,8 @@ except Exception:
         python3 -c "
 import sys
 sys.path.insert(0, sys.argv[1])
-from interceptor import write_last_recommended_category
-write_last_recommended_category(sys.argv[2])
+from interceptor import add_fired_category
+add_fired_category(sys.argv[2])
 " "$SKILL_ROUTER_DIR" "$CATEGORY" 2>/dev/null || true
         if [ -n "$SESSION_ID" ]; then
             python3 -c "

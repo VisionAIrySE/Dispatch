@@ -276,18 +276,18 @@ def get_last_cc_tool_type(state_file: str = None) -> str:
         return ""
 
 
-def get_last_recommended_category(state_file: str = None) -> str:
-    """Return the category last shown in a proactive recommendation, or '' if unset."""
+def get_fired_categories(state_file: str = None) -> set:
+    """Return set of categories already recommended this session (never re-fire same category)."""
     path = state_file or STATE_FILE
     try:
         with open(path) as f:
-            return json.load(f).get("last_recommended_category", "")
+            return set(json.load(f).get("fired_categories_session", []))
     except Exception:
-        return ""
+        return set()
 
 
-def write_last_recommended_category(category: str, state_file: str = None) -> None:
-    """Persist the category we just recommended so we don't re-fire for the same topic."""
+def add_fired_category(category: str, state_file: str = None) -> None:
+    """Add category to the session fired-set so it never fires again this session."""
     path = state_file or STATE_FILE
     try:
         try:
@@ -295,7 +295,10 @@ def write_last_recommended_category(category: str, state_file: str = None) -> No
                 state = json.load(f)
         except Exception:
             state = {}
-        state["last_recommended_category"] = category
+        fired = state.get("fired_categories_session", [])
+        if category not in fired:
+            fired.append(category)
+        state["fired_categories_session"] = fired
         _atomic_write(path, state)
     except Exception:
         pass
@@ -319,6 +322,7 @@ def increment_session_counter(field: str, session_id: str, state_file: str = Non
             state["session_audits"] = 0
             state["session_blocks"] = 0
             state["session_recommendations"] = 0
+            state["fired_categories_session"] = []
         state[field] = state.get(field, 0) + 1
         _atomic_write(path, state)
     except Exception:
