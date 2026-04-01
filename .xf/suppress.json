@@ -3,6 +3,10 @@
     {
       "type": "silent_exception",
       "reason": "Dispatch hooks must never crash Claude — broad except catches are intentional safety design. All paths exit 0 on failure by contract."
+    },
+    {
+      "type": "missing_env_var",
+      "reason": "Dispatch reads API keys from the shell environment (ANTHROPIC_API_KEY, OPENROUTER_API_KEY) — not from .env files. These are not missing, they are intentionally provided at runtime."
     }
   ]
 }
