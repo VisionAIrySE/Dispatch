@@ -1,0 +1,8 @@
+{
+  "suppress": [
+    {
+      "type": "silent_exception",
+      "reason": "Dispatch hooks must never crash Claude — broad except catches are intentional safety design. All paths exit 0 on failure by contract."
+    }
+  ]
+}
