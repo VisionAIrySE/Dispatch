@@ -304,11 +304,42 @@ def add_fired_category(category: str, state_file: str = None) -> None:
         pass
 
 
+def record_stage3_fired(category: str, session_id: str, state_file: str = None) -> None:
+    """Atomically record a Stage 3 recommendation: handle session boundary, add category,
+    and increment session_recommendations in a single read/write.
+
+    Replaces the previous two-step add_fired_category + increment_session_counter pattern
+    which had a race: increment_session_counter's session-boundary reset would wipe
+    fired_categories_session after add_fired_category had just written to it.
+    """
+    path = state_file or STATE_FILE
+    try:
+        try:
+            with open(path) as f:
+                state = json.load(f)
+        except Exception:
+            state = {}
+        if state.get("session_id") != session_id:
+            state["session_id"] = session_id
+            state["session_audits"] = 0
+            state["session_blocks"] = 0
+            state["session_recommendations"] = 0
+            state["fired_categories_session"] = []
+        fired = state.get("fired_categories_session", [])
+        if category not in fired:
+            fired.append(category)
+        state["fired_categories_session"] = fired
+        state["session_recommendations"] = state.get("session_recommendations", 0) + 1
+        _atomic_write(path, state)
+    except Exception:
+        pass
+
+
 def increment_session_counter(field: str, session_id: str, state_file: str = None) -> None:
     """Increment a session counter field, resetting all counters if session_id changed.
 
-    Called by preuse_hook.sh (session_audits, session_blocks) and dispatch.sh
-    (session_recommendations). Resets on session boundary detection via session_id.
+    Called by preuse_hook.sh (session_audits, session_blocks).
+    For Stage 3 recommendations use record_stage3_fired() instead.
     """
     path = state_file or STATE_FILE
     try:

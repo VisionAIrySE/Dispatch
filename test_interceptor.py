@@ -546,6 +546,69 @@ class TestFiredCategories(unittest.TestCase):
             os.unlink(tmp)
 
 
+class TestRecordStage3Fired(unittest.TestCase):
+    """record_stage3_fired must add category AND increment counter atomically.
+
+    The old two-step (add_fired_category then increment_session_counter) had a race:
+    increment_session_counter's session-boundary reset would wipe fired_categories_session
+    after add_fired_category had just written it, causing Stage 3 to re-fire every turn.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+        json.dump({}, self.tmp)
+        self.tmp.close()
+        self.state_file = self.tmp.name
+
+    def tearDown(self):
+        os.unlink(self.state_file)
+
+    def test_adds_category_and_increments_counter(self):
+        from interceptor import record_stage3_fired, get_fired_categories
+        record_stage3_fired("data-storage", "sess-1", state_file=self.state_file)
+        cats = get_fired_categories(state_file=self.state_file)
+        self.assertIn("data-storage", cats)
+        with open(self.state_file) as f:
+            state = json.load(f)
+        self.assertEqual(state["session_recommendations"], 1)
+
+    def test_session_boundary_still_adds_category(self):
+        """On session boundary reset, category must survive — this was the race condition bug."""
+        from interceptor import record_stage3_fired, get_fired_categories
+        # Simulate state left by a previous session
+        with open(self.state_file, "w") as f:
+            json.dump({"session_id": "old-sess", "session_recommendations": 5,
+                       "fired_categories_session": ["mobile"]}, f)
+        # New session fires
+        record_stage3_fired("data-storage", "new-sess", state_file=self.state_file)
+        cats = get_fired_categories(state_file=self.state_file)
+        # Old categories wiped, new category present
+        self.assertIn("data-storage", cats)
+        self.assertNotIn("mobile", cats)
+        with open(self.state_file) as f:
+            state = json.load(f)
+        self.assertEqual(state["session_recommendations"], 1)
+        self.assertEqual(state["session_id"], "new-sess")
+
+    def test_same_session_does_not_duplicate_category(self):
+        from interceptor import record_stage3_fired, get_fired_categories
+        record_stage3_fired("data-storage", "sess-1", state_file=self.state_file)
+        record_stage3_fired("data-storage", "sess-1", state_file=self.state_file)
+        cats = get_fired_categories(state_file=self.state_file)
+        self.assertEqual(list(cats).count("data-storage"), 1)
+
+    def test_multiple_categories_same_session(self):
+        from interceptor import record_stage3_fired, get_fired_categories
+        record_stage3_fired("data-storage", "sess-1", state_file=self.state_file)
+        record_stage3_fired("source-control", "sess-1", state_file=self.state_file)
+        cats = get_fired_categories(state_file=self.state_file)
+        self.assertIn("data-storage", cats)
+        self.assertIn("source-control", cats)
+        with open(self.state_file) as f:
+            state = json.load(f)
+        self.assertEqual(state["session_recommendations"], 2)
+
+
 class TestSessionCounters(unittest.TestCase):
 
     def setUp(self):

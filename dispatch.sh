@@ -598,17 +598,9 @@ except Exception:
         python3 -c "
 import sys
 sys.path.insert(0, sys.argv[1])
-from interceptor import add_fired_category
-add_fired_category(sys.argv[2])
-" "$SKILL_ROUTER_DIR" "$CATEGORY" 2>/dev/null || true
-        if [ -n "$SESSION_ID" ]; then
-            python3 -c "
-import sys
-sys.path.insert(0, sys.argv[1])
-from interceptor import increment_session_counter
-increment_session_counter('session_recommendations', sys.argv[2])
-" "$SKILL_ROUTER_DIR" "$SESSION_ID" 2>/dev/null || true
-        fi
+from interceptor import record_stage3_fired
+record_stage3_fired(sys.argv[2], sys.argv[3])
+" "$SKILL_ROUTER_DIR" "$CATEGORY" "$SESSION_ID" 2>/dev/null || true
     fi
 fi
 
