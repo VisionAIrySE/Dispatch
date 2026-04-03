@@ -12,6 +12,28 @@ SETTINGS="$HOME/.claude/settings.json"
 CONFIG_FILE="$DISPATCH_DIR/config.json"
 DISPATCH_ENDPOINT="https://dispatch.visionairy.biz"
 
+# ── Detect tier for XFTC ──────────────────────────────────────────────────
+XFTC_TIER="free"
+if [ -f "$CONFIG_FILE" ]; then
+    EXISTING_TOKEN=$(python3 -c "
+import json
+try:
+    d = json.load(open('$CONFIG_FILE'))
+    print(d.get('token', ''))
+except:
+    print('')
+" 2>/dev/null || echo "")
+
+    if [ -n "$EXISTING_TOKEN" ]; then
+        PLAN=$(curl -sf "$DISPATCH_ENDPOINT/usage?token=$EXISTING_TOKEN" \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('plan','free'))" \
+            2>/dev/null || echo "free")
+        XFTC_TIER="$PLAN"
+    elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+        XFTC_TIER="byok"
+    fi
+fi
+
 echo "Installing Dispatch..."
 
 # ── Check dependencies ─────────────────────────────────────────────────────
@@ -93,6 +115,49 @@ cp preuse_hook.sh "$HOOKS_DIR/dispatch-preuse.sh"
 chmod +x "$HOOKS_DIR/dispatch-preuse.sh"
 cp stop_hook.sh "$HOOKS_DIR/dispatch-stop.sh"
 chmod +x "$HOOKS_DIR/dispatch-stop.sh"
+
+# ── Install XFTC Module 3 ──────────────────────────────────────────────────
+XFTC_DEST="${HOME}/.claude/xftc"
+mkdir -p "$XFTC_DEST/checks" "$XFTC_DEST/tests"
+
+cp -r xftc/*.py "$XFTC_DEST/"
+cp -r xftc/checks/*.py "$XFTC_DEST/checks/"
+touch "$XFTC_DEST/__init__.py" "$XFTC_DEST/checks/__init__.py"
+
+# Seed XFTC state (preserves existing state on --update)
+XFTC_STATE="$DISPATCH_DIR/xftc_state.json"
+if [ ! -f "$XFTC_STATE" ]; then
+    python3 -c "
+import json, sys
+state = {
+    'tier': sys.argv[1],
+    'installed_version': '1.0.0',
+    'last_notified_version': '1.0.0',
+    'last_version_check_date': '',
+    'sessions': {},
+    'projects': {}
+}
+with open(sys.argv[2], 'w') as f:
+    json.dump(state, f, indent=2)
+" "${XFTC_TIER:-free}" "$XFTC_STATE"
+else
+    python3 -c "
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        s = json.load(f)
+    s['installed_version'] = '1.0.0'
+    with open(sys.argv[1], 'w') as f:
+        json.dump(s, f, indent=2)
+except Exception:
+    pass
+" "$XFTC_STATE"
+fi
+
+cp xftc-submit.sh "$HOOKS_DIR/xftc-submit.sh"
+cp xftc-preuse.sh "$HOOKS_DIR/xftc-preuse.sh"
+cp xftc-stop.sh  "$HOOKS_DIR/xftc-stop.sh"
+chmod +x "$HOOKS_DIR/xftc-submit.sh" "$HOOKS_DIR/xftc-preuse.sh" "$HOOKS_DIR/xftc-stop.sh"
 
 # ── Install /dispatch status skill ────────────────────────────────────────
 SKILLS_DIR="$HOME/.claude/skills/dispatch-status"
@@ -209,6 +274,106 @@ with open(settings_path, "w") as f:
 print("Registered Stop hook in settings.json")
 PYEOF
 
+# Register XFTC UserPromptSubmit hook
+python3 - <<PYEOF
+import json, sys, os
+settings_path = "$SETTINGS"
+hook_cmd = "bash $HOOKS_DIR/xftc-submit.sh"
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
+hooks = settings.setdefault("hooks", {})
+hook_basename = "xftc-submit.sh"
+for entry in hooks.get("UserPromptSubmit", []):
+    for h in entry.get("hooks", []):
+        if hook_basename in h.get("command", ""):
+            print("XFTC UserPromptSubmit hook already registered — skipping.")
+            sys.exit(0)
+hooks.setdefault("UserPromptSubmit", []).append({
+    "hooks": [{"type": "command", "command": hook_cmd, "timeout_ms": 8000}]
+})
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2)
+print("Registered XFTC UserPromptSubmit hook")
+PYEOF
+
+# Register XFTC PreToolUse hook
+python3 - <<PYEOF
+import json, sys, os
+settings_path = "$SETTINGS"
+hook_cmd = "bash $HOOKS_DIR/xftc-preuse.sh"
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
+hooks = settings.setdefault("hooks", {})
+hook_basename = "xftc-preuse.sh"
+for entry in hooks.get("PreToolUse", []):
+    for h in entry.get("hooks", []):
+        if hook_basename in h.get("command", ""):
+            print("XFTC PreToolUse hook already registered — skipping.")
+            sys.exit(0)
+hooks.setdefault("PreToolUse", []).append({
+    "hooks": [{"type": "command", "command": hook_cmd, "timeout_ms": 8000}]
+})
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2)
+print("Registered XFTC PreToolUse hook")
+PYEOF
+
+# Register XFTC Stop hook
+python3 - <<PYEOF
+import json, sys, os
+settings_path = "$SETTINGS"
+hook_cmd = "bash $HOOKS_DIR/xftc-stop.sh"
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
+hooks = settings.setdefault("hooks", {})
+hook_basename = "xftc-stop.sh"
+for entry in hooks.get("Stop", []):
+    for h in entry.get("hooks", []):
+        if hook_basename in h.get("command", ""):
+            print("XFTC Stop hook already registered — skipping.")
+            sys.exit(0)
+hooks.setdefault("Stop", []).append({
+    "hooks": [{"type": "command", "command": hook_cmd, "timeout_ms": 3000}]
+})
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2)
+print("Registered XFTC Stop hook")
+PYEOF
+
+# ── Configure XFTC status line ─────────────────────────────────────────────
+python3 - <<PYEOF
+import json, os
+settings_path = "$SETTINGS"
+STATUS_LINE_FORMAT = "{model} | {context_bar} {context_percent}% | {context_tokens_used} of {context_window} tokens"
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (json.JSONDecodeError, IOError):
+    settings = {}
+existing_sl = settings.get("statusLine")
+# Replace if: not set, OR already a shell-script-command type (not a format string)
+is_shell_script = isinstance(existing_sl, dict) and existing_sl.get("type") == "command"
+if not existing_sl or is_shell_script:
+    settings["statusLine"] = STATUS_LINE_FORMAT
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=2)
+    if is_shell_script:
+        print("Status line updated (replaced shell script with XFTC format string)")
+    else:
+        print("Status line configured")
+else:
+    print("Status line already configured — skipping")
+PYEOF
+
 # ── Auth / API key setup ───────────────────────────────────────────────────
 echo ""
 
@@ -270,6 +435,8 @@ fi
 
 echo ""
 echo "✓ Dispatch installed."
+echo "✓ XFTC Module 3 installed"
+echo "✓ Status line configured — open a new terminal to see it"
 echo ""
 
 # ── Status summary ─────────────────────────────────────────────────────────
