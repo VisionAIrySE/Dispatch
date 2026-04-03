@@ -2,7 +2,7 @@
 
 **ToolDispatch** — your Claude Code insurance policy. Two modules that cover both sides of the problem.
 
-**Dispatch** surfaces the best plugin, skill, or MCP when you shift tasks, and blocks tool calls when a better marketplace alternative exists. **XF Audit** catches broken module contracts before they run — syntax errors, missing imports, arity mismatches, broken function signatures — and provides a concrete repair plan with graduated consent.
+**Dispatch** surfaces the best plugin, skill, or MCP when you shift tasks, and blocks tool calls when a better marketplace alternative exists. **XF Audit** catches broken module contracts before they run — syntax errors, missing imports, arity mismatches, broken function signatures — across Python, TypeScript, Dart, and Bash — and provides a concrete repair plan with a three-state consent flow.
 
 You don't know what you don't know. Neither does Claude Code. And the ecosystem is exploding — new tools ship every week, the gap between what you're using and what's out there grows every day. And Claude Code produces architecturally sound code that often doesn't connect. ToolDispatch covers both problems, leaves a record, and gets out of the way.
 
@@ -189,7 +189,7 @@ Shows:
 | | Free | Founding Pro | Pro | BYOK* |
 |---|---|---|---|---|
 | Proactive recommendations | ✓ | ✓ | ✓ | ✓ |
-| Interceptions/day | 8 | Unlimited | Unlimited | Unlimited |
+| Interceptions/day | 5 | Unlimited | Unlimited | Unlimited |
 | Recommendation quality | Good | Best | Best | Configurable* |
 | Catalog sources | 3, live (~2–4s) | 6, pre-ranked (<200ms) | 6, pre-ranked (<200ms) | 3, live (~2–4s) |
 | Network intelligence | — | ✓ | ✓ | — |
@@ -202,6 +202,63 @@ Shows:
 *BYOK runs entirely on your machine against your own API key — no data goes through ToolDispatch servers. Set `OPENROUTER_API_KEY` to use any OpenRouter model (free models available, including Llama and Nemotron). Set `ANTHROPIC_API_KEY` for direct Claude access. Override the default model in `~/.claude/dispatch/config.json`. Free and Pro tiers run inference through ToolDispatch's servers — you provide nothing and pay nothing for the LLM calls.
 
 ---
+
+---
+
+## XF Audit — what happens on every edit
+
+XF Audit fires before every file Edit and Write. On a clean pass, you'll see this appear in your chat:
+
+```
+◈ XFBA  47 modules · 203 edges  ✓ 0 violations
+◈ XSIA  ✓ 0 concerns
+```
+
+**XFBA** (XF Boundary Auditor) checks the proposed file content against your live codebase graph before the write lands — broken imports, arity mismatches, missing env vars, consumed stubs.
+
+**XSIA** (XF System Impact Analyzer) flags edits with systemic reach — callers that will be affected, data flow changes, side effects, error handling gaps.
+
+**Supported languages:** Python, TypeScript, TSX, Dart, and Bash. If you're working in React Native or Flutter, your full stack is covered — not just Python glue code.
+
+### When XF Audit blocks
+
+If XFBA finds a real violation, Claude sees this instead of the clean stamp:
+
+```
+◈ XFBA  This edit will break at runtime.
+
+  evaluator.py:203 — calls rank_tools() with 3 arguments, but it only accepts 2.
+  This will throw a TypeError when that code runs.
+
+  [Fix problem]   Type "Fix problem" — I'll apply the repair, re-audit, and promise clean
+  [Show diff]     Type "Show diff"  — show me the exact change before deciding
+```
+
+**Your three options:**
+
+- **Say `Fix problem`** — Claude applies the repair, re-audits, and outputs `<promise>XFBA_CLEAN</promise>` when the codebase is clean
+- **Say `Show diff`** — Claude shows exactly what changes before applying anything; you then say `Apply fix` or `I'll handle it`
+- **Say `I'll handle it`** — allows the edit through and logs the violation to `.xf/repair_log.json` for later review
+
+### Refactor Mode
+
+When you're mid-refactor and the code is intentionally broken across files, use:
+
+```
+/xfa-refactor start "description of what I'm doing"
+```
+
+Violations accumulate without blocking. When you're done:
+
+```
+/xfa-refactor end
+```
+
+You get a consolidated repair list for everything flagged during the refactor.
+
+### The record
+
+Every scan writes `.xf/boundary_violations.json`. Every repair is logged to `.xf/repair_log.json` with timestamp and accepted/declined status. When something goes wrong in production, the log tells you whether XF Audit caught it.
 
 ## Troubleshooting
 
