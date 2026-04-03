@@ -108,28 +108,30 @@ If no marketplace tool beats Claude's choice by 10+ points, Dispatch exits silen
 
 ### XF Audit — contract checking
 
-XF Audit fires on every Edit and Write. Most of the time, Stage 1 completes in ~200ms and you see a green stamp:
+XF Audit fires on every Edit and Write. Most of the time, Stage 1 completes in ~200ms and you see a green stamp in your terminal:
 
 ```
-◈ XF Audit  47 modules · 203 edges checked  ✓ 0 boundary violations
+◈ XFBA  47 modules · 203 edges  ✓ 0 violations
+◈ XSIA  ✓ 0 concerns
 ```
 
-When something is actually wrong:
+When something is actually wrong, Claude sees this before the write lands:
 
 ```
-◈ XF Audit  This edit will break at runtime.
+◈ XFBA  This edit will break at runtime.
 
   evaluator.py:203 — calls rank_tools() with 3 arguments, but it only accepts 2.
   This will throw a TypeError when that code runs.
 
-  Fix: remove the third argument, or update rank_tools() to accept it.
-
-  To proceed: say 'show me the diff first', 'skip for now', or 'apply all' (unlocks after 2 verified repairs).
+  [Fix problem]   Type "Fix problem" — I'll apply the repair, re-audit, and promise clean
+  [Show diff]     Type "Show diff"  — show me the exact change before deciding
 ```
+
+**Supported languages:** Python, TypeScript, TSX, Dart, and Bash. XFBA indexes your entire project, walks the cross-file call graph, and applies the same contract checks regardless of language. If you're building React Native or Flutter apps with Claude Code, XFBA covers your full stack — not just the Python glue code.
 
 The four stages:
 
-- **Stage 1** (~200ms, always): AST scan — syntax, missing imports, arity mismatches, hard env var access, consumed stubs. Blocks immediately on violations.
+- **Stage 1** (~200ms, always): Cross-language AST scan — syntax errors, missing imports, arity mismatches, hard env var access, consumed stubs. Works across Python, TypeScript/TSX, Dart, and Bash. Blocks immediately on violations.
 - **Stage 2** (on escalation): Xpansion cascade analysis — maps the full caller chain using MECE boundary framework (DATA, NODES, FLOW, ERRORS). Shows consequence-first output.
 - **Stage 3**: Concrete repair plan — each violation gets one specific file-and-line fix.
 - **Stage 4**: Graduated consent — "show me the diff first" until two verified repairs this session, then "apply all" unlocks. Resets each session.
@@ -274,9 +276,10 @@ Coming soon (not yet available):
 
 When XF Audit blocks an edit, Claude reads the options from the hook output and acts:
 
-- **Say `show me the diff first`** — Claude shows what the repair would change before applying it
-- **Say `skip for now`** — allow the edit through without repair (violation stays in log)
-- **Say `apply all`** — unlocks after two verified repairs this session; applies all staged repairs at once
+- **Say `Fix problem`** — Claude applies the repair, re-audits, and outputs `<promise>XFBA_CLEAN</promise>` when clean
+- **Say `Show diff`** — Claude shows exactly what the repair changes before applying it
+- **After Show diff, say `Apply fix`** — apply the shown change, re-audit, promise clean
+- **Say `I'll handle it`** — allow the edit through; violation is logged to `.xf/repair_log.json` for review
 
 Coming soon:
 
@@ -486,6 +489,8 @@ In practice, this meant:
 
 We eat our own cooking. The tool that ships with ToolDispatch is the tool we use to build ToolDispatch.
 
+With the addition of TypeScript and Dart scanner support, XFBA also monitors LC-Access (React Native — 28 TS modules indexed) and Perimeter (Flutter — 49 Dart modules indexed) during development. Every edit Claude makes across all three codebases is checked before it lands.
+
 ---
 
 ## Roadmap
@@ -504,6 +509,7 @@ We eat our own cooking. The tool that ships with ToolDispatch is the tool we use
 - [x] Hosted proactive recommendations for Free and Pro
 - [x] Session digest — Stop hook shows what Dispatch did each session
 - [x] `/xfa-refactor start/end` — Refactor Mode for XF Audit
+- [x] TypeScript, TSX, and Dart scanner support — XFBA/XSIA now cover React Native and Flutter projects
 - [ ] `/dispatch pause/resume` — disable hooks mid-session without uninstalling
 - [ ] `/dispatch stack` — show detected project stack
 - [ ] `/dispatch why` — explain last block decision
