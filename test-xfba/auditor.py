@@ -261,11 +261,7 @@ def main() -> int:
             f"{XFA_GREEN}✓ 0 violations{XFA_RESET}{warning_suffix}\n"
             f"{XFA_CYAN}◈ XSIA{XFA_RESET}  {XFA_GREEN}✓ 0 concerns{XFA_RESET}\n"
         )
-        try:
-            with open("/dev/tty", "w") as tty:
-                tty.write(stamp)
-        except OSError:
-            sys.stderr.write(stamp)
+        sys.stdout.write(stamp)
         return 0
 
     # --- XSI concerns only (no XFA violations) — block with choice ---
@@ -274,17 +270,13 @@ def main() -> int:
         warning_suffix = ""
         if all_warnings:
             warning_suffix = f"  {XFA_YELLOW}{len(all_warnings)} warning(s){XFA_RESET}"
-        # Clean stamp to terminal first so user sees XFBA passed
+        # Clean XFBA stamp to stdout so Claude sees it before the XSIA block
         clean_stamp = (
             f"{XFA_CYAN}◈ XFBA{XFA_RESET}  "
             f"{XFA_GRAY}{module_count} modules · {edge_count} edges{XFA_RESET}  "
             f"{XFA_GREEN}✓ 0 violations{XFA_RESET}{warning_suffix}\n"
         )
-        try:
-            with open("/dev/tty", "w") as tty:
-                tty.write(clean_stamp)
-        except OSError:
-            sys.stderr.write(clean_stamp)
+        sys.stdout.write(clean_stamp)
         # XSI block to stdout → CC context (exit 2)
         lines = [
             f"{XFA_CYAN}◈ XSIA{XFA_RESET}  "
