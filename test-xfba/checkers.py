@@ -77,7 +77,7 @@ def arity_violations(index: Dict[str, Any]) -> List[Dict[str, Any]]:
             if call.get("has_star_args") or call.get("has_kwargs_unpack"):
                 continue
             fn = func_map[sym]
-            if fn.get("has_varargs"):
+            if fn.get("has_varargs") or fn.get("has_varkw"):
                 continue
             n_total = fn.get("n_total", 0)
             if n_args > n_total:
