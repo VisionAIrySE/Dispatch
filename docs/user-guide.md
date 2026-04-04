@@ -242,19 +242,39 @@ If XFBA finds a real violation, Claude sees this instead of the clean stamp:
 
 ### Refactor Mode
 
-When you're mid-refactor and the code is intentionally broken across files, use:
+When you're mid-refactor and the code is intentionally broken across files, XFBA would normally block every intermediate edit. Refactor Mode holds all violations without blocking and presents them as a consolidated list when you're done.
 
-```
-/xfa-refactor start "description of what I'm doing"
-```
+**Starting a refactor:**
 
-Violations accumulate without blocking. When you're done:
-
+Tell Claude:
 ```
-/xfa-refactor end
+start refactor mode — renaming do_work to process_task across all callers
 ```
 
-You get a consolidated repair list for everything flagged during the refactor.
+Claude will write the refactor flag file and confirm tracking is active. All subsequent edits pass through without blocking; violations accumulate in memory.
+
+**Ending a refactor:**
+
+Tell Claude:
+```
+end refactor mode
+```
+
+Claude presents every violation that fired during the session as a single consolidated repair list. You work through them in one pass.
+
+**When to use it:**
+
+- Renaming a function used in 10+ files
+- Changing a function signature and updating all callers
+- Splitting a module into two (callers temporarily broken)
+- Any edit sequence where intermediate states are intentionally invalid
+
+**When not to use it:**
+
+- Normal development — XFBA's per-edit blocking is the point
+- When you're not sure what you're changing — violations tell you the blast radius
+
+**Note:** Refactor Mode is never activated automatically. XF Audit previously suggested it when it detected a repeated symbol — that behavior has been removed. You activate it explicitly when you know you need it.
 
 ### The record
 
