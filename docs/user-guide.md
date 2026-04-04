@@ -280,6 +280,36 @@ Claude presents every violation that fired during the session as a single consol
 
 Every scan writes `.xf/boundary_violations.json`. Every repair is logged to `.xf/repair_log.json` with timestamp and accepted/declined status. When something goes wrong in production, the log tells you whether XF Audit caught it.
 
+### Handling false positives
+
+XF Audit catches real bugs, but occasionally flags valid code as a violation — e.g., a function using `**kwargs` that the arity checker misreads, or a pattern the scanner doesn't recognize.
+
+**One-time: say "skip for now"**
+Claude will pass the edit through for this call only. Nothing is persisted.
+
+**XSIA only: "let it ride"**
+For XSIA systemic concerns (not XFBA blocking violations), run:
+```bash
+touch ~/.claude/xf-boundary-auditor/.xf/xsia_bypass
+```
+Then retry the edit. The bypass expires in 120 seconds.
+
+**Persistent: suppress via `.xf/suppress.json`**
+Create or edit `.xf/suppress.json` in your project root. Two formats:
+
+```json
+// Suppress an entire violation type:
+{"suppress": [{"type": "silent_exception", "reason": "intentional broad catch in hooks"}]}
+
+// Suppress a specific function only (arity or interface violations):
+{"suppress": [{"type": "arity_mismatch", "symbol": "_viol", "reason": "uses **kwargs"}]}
+```
+
+Suppressed violations are filtered before the block decision — they don't appear in output or block edits. The `reason` field is optional but recommended for future reference.
+
+**When XFBA itself has a bug**
+If the false positive is caused by a checker bug (e.g., `**kwargs` not recognized, submodule imports misidentified), fix the checker. The CLAUDE.md architectural principle applies: Bash edits to installed files at `~/.claude/xf-boundary-auditor/` are acceptable when the Edit tool creates a circular XFBA dependency.
+
 ---
 
 ## XFTC — Token Control (Module 3)
@@ -310,6 +340,8 @@ claude-sonnet-4-6 | ████░░░░░░ 42% | 420k of 1000k tokens
 | Check | When it fires | Tier |
 |---|---|---|
 | CLAUDE.md length | Session start, if project or global CLAUDE.md >200 lines | All tiers |
+| Skills size | Session start, if >15 skills or >200KB total installed | All tiers |
+| Memory audit | Session start, if MEMORY.md has broken links | Pro |
 | MCP overhead | Session start, if >2 servers active | Pro |
 | Sub-agent model | Every Agent call using Opus or Sonnet on lightweight task | Pro |
 | Verbose commands | Every Bash call matching verbose patterns | Pro |
@@ -350,7 +382,7 @@ The verbose command list and lightweight keyword list are configurable. Edit `~/
 
 ### Skills installed with Dispatch
 
-Two slash commands are installed automatically:
+Four slash commands are installed automatically:
 
 **`/dispatch-status`** — show hook state, last task detected, category, quota, and bypass token status.
 
@@ -376,6 +408,27 @@ Sections staying in CLAUDE.md:
 
 Proceed?
 ```
+
+**`/warm-start`** — capture a complete session snapshot so the next session starts with zero re-explanation. Run this at the end of any session where significant work was done, or when XFTC nudges about broken MEMORY.md links. Claude will:
+1. Run `git log` + `git status` to establish actual build state
+2. Run all test suites and record counts
+3. Audit MEMORY.md for broken links — back up to `MEMORY.md.bak` and fix before continuing
+4. Write a dated session snapshot file to your project memory directory
+5. Update the `START HERE` section of MEMORY.md
+6. Commit any CLAUDE.md changes
+
+```
+Warm start complete.
+
+Snapshot: project_2026-04-03-session2.md
+Tests: 409 passing
+MEMORY.md: 2 broken links fixed (backup: MEMORY.md.bak)
+Next: implement TS/Dart scanners
+```
+
+The snapshot is automatically discovered by the next session's context loader.
+
+---
 
 ## Troubleshooting
 

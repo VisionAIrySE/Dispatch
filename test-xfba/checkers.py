@@ -43,6 +43,16 @@ def from_import_violations(index: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         if sym in exports_by_module[callee]:
             continue
+        # Skip when sym is a sibling module of callee in the same package
+        # e.g. `from xftc import state` resolves callee=xftc/xftc, sym=state
+        # but xftc/state is a real module — this is a package submodule import, not a missing symbol
+        parent = callee.rsplit("/", 1)[0] if "/" in callee else ""
+        if parent and f"{parent}/{sym}" in modules:
+            continue
+        # Also skip when sym matches the last segment of callee itself
+        # e.g. `from xftc import xftc` → callee=xftc/xftc, sym=xftc
+        if callee.endswith(f"/{sym}"):
+            continue
         violations.append({
             "id": f"i{vid:03d}", "type": "interface_existence", "severity": "error",
             "caller_module": edge.get("caller_module"),

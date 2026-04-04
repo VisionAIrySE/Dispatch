@@ -174,6 +174,22 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
             print("         Use /compact before breaks to preserve cache and reduce cost on return")
             update_project(dir_hash, {"last_cache_reminder": today})
 
+    # Memory audit — once per project per day
+    if project.get("memory_audit_last") != today:
+        from xftc.checks.memory_audit_check import check_memory_audit
+        result = check_memory_audit(cwd)
+        if result:
+            count = result["count"]
+            noun = "link" if count == 1 else "links"
+            print(
+                f"{xftc_prefix()}  MEMORY.md has {count} broken {noun} "
+                f"— referenced files that no longer exist"
+            )
+            print(
+                "         Say '/warm-start' to audit and fix (creates .bak backup first)"
+            )
+        update_project(dir_hash, {"memory_audit_last": today})
+
     # Version check — Mondays only
     if is_monday:
         state = load_state()
