@@ -17,6 +17,15 @@ def fresh_state_file(tmp_path):
 class TestXftcOrchestrator:
     """Integration tests for the xftc.py orchestrator."""
 
+    @pytest.fixture(autouse=True)
+    def clear_pending_file(self, tmp_path):
+        """Patch _PENDING_FILE to an empty temp file for each test."""
+        pending = str(tmp_path / "xftc_pending.json")
+        with open(pending, "w") as f:
+            f.write("[]")
+        with patch.object(_xftc_mod, "_PENDING_FILE", pending):
+            yield
+
     def _make_submit_data(self, session_id="test-session", cwd=None):
         return {
             "session_id": session_id,
@@ -138,19 +147,18 @@ class TestXftcOrchestrator:
                 assert "Pro would have flagged" in out, \
                     "Context ghost must fire at message_count=8 even after CLAUDE.md warning"
 
-    def test_context_check_fires_at_50_messages_for_pro(self, tmp_path, capsys):
-        """Pro context check should fire at ~50 messages with new calibration."""
+    def test_context_check_fires_when_transcript_is_large(self, tmp_path, capsys):
+        """Pro context check fires when transcript drives fill >= 60%."""
         sf = fresh_state_file(tmp_path)
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_bytes(b"x" * 500_000)  # 500KB → ~62% of 800KB window
         with patch.object(_state_mod, "STATE_FILE", sf):
             with patch("xftc.xftc.get_tier", return_value="pro"):
-                # 50 warm-up messages — fill = 50*0.012 = 0.60, exactly at threshold
-                # compact_warned is set on the call that first crosses ≥ 0.60
-                # Call 1 → message_count=1, fill=0.012; call 50 → message_count=50, fill=0.60
-                for i in range(49):
-                    _xftc_mod.run_submit_hook({"session_id": "s1", "cwd": str(tmp_path)})
-                    capsys.readouterr()
-                # 50th message: message_count=50, fill=50*0.012=0.60 ≥ threshold → fires
-                _xftc_mod.run_submit_hook({"session_id": "s1", "cwd": str(tmp_path)})
+                _xftc_mod.run_submit_hook({
+                    "session_id": "s1",
+                    "cwd": str(tmp_path),
+                    "transcript_path": str(transcript),
+                })
                 out = capsys.readouterr().out
                 assert "Context estimated" in out, \
-                    "Pro context nudge must fire at ~50 messages with 0.012 calibration"
+                    "Pro context nudge must fire when transcript >= 60% of context window"

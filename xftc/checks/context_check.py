@@ -3,39 +3,65 @@ from typing import Optional
 
 COMPACT_THRESHOLD = 0.60
 
-# Calibration constants — proxy model until CC exposes token counts to hooks
-_MSG_FILL_PER_STEP = 0.012   # each message adds ~1.2% context fill (~50 msgs → 60%)
-_LINE_FILL_PER_100 = 0.015   # 100 CLAUDE.md lines ≈ 1.5% fill
+# CC context window in tokens; ~4 chars per token → 800k chars = 200k tokens
+_CONTEXT_CHARS = 800_000
+
+# Constant overhead for CC system prompt + tool schemas (not in transcript)
+_SYSTEM_OVERHEAD_CHARS = 40_000
 
 
-def estimate_context_fill(message_count: int, cwd: str) -> float:
+def estimate_context_fill(message_count: int, cwd: str,
+                          transcript_path: Optional[str] = None) -> float:
     """
     Estimate context fill as a fraction [0.0, 1.0].
-    Proxy model: message count + CLAUDE.md size (project + global).
-    Replace with CC token API when available.
+    Dynamic model: measures actual bytes from transcript + all auto-loaded files.
+    Falls back to message_count proxy when transcript_path unavailable.
     """
-    fill = message_count * _MSG_FILL_PER_STEP
+    total_chars = _SYSTEM_OVERHEAD_CHARS
 
-    for path in [
+    # Transcript (actual conversation history)
+    if transcript_path and os.path.exists(transcript_path):
+        try:
+            total_chars += os.path.getsize(transcript_path)
+        except Exception:
+            pass
+    else:
+        # Fallback proxy when transcript not available
+        total_chars += message_count * 2_000  # ~500 tokens per exchange
+
+    # All auto-loaded CLAUDE.md files
+    claude_paths = [
         os.path.join(cwd, "CLAUDE.md"),
         os.path.expanduser("~/.claude/CLAUDE.md"),
-    ]:
+        os.path.expanduser("~/CLAUDE.md"),
+    ]
+    for path in claude_paths:
         if os.path.exists(path):
             try:
-                with open(path) as f:
-                    lines = sum(1 for _ in f)
-                fill += (lines / 100) * _LINE_FILL_PER_100
+                total_chars += os.path.getsize(path)
             except Exception:
                 pass
 
-    return min(fill, 1.0)
+    # Auto-loaded MEMORY.md for this project
+    encoded = cwd.replace("/", "-")
+    memory_md = os.path.expanduser(
+        f"~/.claude/projects/{encoded}/memory/MEMORY.md"
+    )
+    if os.path.exists(memory_md):
+        try:
+            total_chars += os.path.getsize(memory_md)
+        except Exception:
+            pass
+
+    return min(total_chars / _CONTEXT_CHARS, 1.0)
 
 
-def should_compact(message_count: int, cwd: str) -> Optional[float]:
+def should_compact(message_count: int, cwd: str,
+                   transcript_path: Optional[str] = None) -> Optional[float]:
     """
     Returns estimated fill if compact is recommended (>= 60%), else None.
     """
-    fill = estimate_context_fill(message_count, cwd)
+    fill = estimate_context_fill(message_count, cwd, transcript_path)
     if fill >= COMPACT_THRESHOLD:
         return fill
     return None

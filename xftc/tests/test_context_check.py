@@ -34,7 +34,9 @@ class TestContextCheck:
 
     def test_should_compact_returns_fill_above_threshold(self, tmp_path):
         from xftc.checks.context_check import should_compact
-        # 200 messages should push well over 60%
-        result = should_compact(200, str(tmp_path))
+        # Large transcript (500KB) drives fill > 60% of 800KB context window
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_bytes(b"x" * 500_000)
+        result = should_compact(0, str(tmp_path), str(transcript))
         assert result is not None
         assert result >= 0.60

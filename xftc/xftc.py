@@ -18,12 +18,41 @@ from xftc.state import (
 )
 from xftc.colors import xftc_prefix
 
+# Pending notices file — written by submit hook, read by Claude at response start
+_PENDING_FILE = os.path.expanduser("~/.claude/dispatch/xftc_pending.json")
+_pending: list = []
+
+
+def _notify(line: str) -> None:
+    """Queue a notice for user-visible surfacing AND print for Claude context."""
+    print(line)
+    _pending.append(line)
+
+
+def _flush_pending() -> None:
+    """Write all queued notices to pending file for Claude to surface in response."""
+    if not _pending:
+        return
+    try:
+        existing: list = []
+        if os.path.exists(_PENDING_FILE):
+            with open(_PENDING_FILE) as f:
+                data = json.load(f)
+                existing = data if isinstance(data, list) else []
+        existing.extend(_pending)
+        os.makedirs(os.path.dirname(_PENDING_FILE), exist_ok=True)
+        with open(_PENDING_FILE, "w") as f:
+            json.dump(existing, f)
+    except Exception:
+        pass
+
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
 def run_submit_hook(data: dict) -> int:
     session_id = data.get("session_id", "unknown")
     cwd = data.get("cwd", os.getcwd())
+    transcript_path = data.get("transcript_path")
     dir_hash = get_dir_hash(cwd)
     tier = get_tier()
     is_pro = (tier == "pro")
@@ -49,22 +78,22 @@ def run_submit_hook(data: dict) -> int:
             total_kb = skills_result["total_kb"]
             top = ", ".join(f"{n} ({kb}KB)" for n, kb in skills_result["top_heavy"][:3])
             if is_pro:
-                print(
+                _notify(
                     f"{xftc_prefix()}  {count} skills installed ({total_kb}KB) — "
                     f"every SKILL.md reloads on every message"
                 )
-                print(
+                _notify(
                     f"         Largest: {top}"
                 )
-                print(
+                _notify(
                     "         Run /dispatch prune-skills to review and remove unused ones"
                 )
             else:
-                print(
+                _notify(
                     f"{xftc_prefix()}  {count} skills installed ({total_kb}KB) — "
                     f"skills burn context on every message"
                 )
-                print(
+                _notify(
                     "         Review with: ls ~/.claude/skills/ — "
                     "or upgrade for full token analysis: dispatch.visionairy.biz/pro"
                 )
@@ -78,34 +107,49 @@ def run_submit_hook(data: dict) -> int:
             p_lines, g_lines = result
             total = p_lines + g_lines
             if is_pro:
-                print(
+                _notify(
                     f"{xftc_prefix()}  Your CLAUDE.md is {total} lines — "
                     f"every line reloads on every message"
                 )
-                print(
+                _notify(
                     "         Run /dispatch-compact-md to move reference sections "
                     "to ~/.claude/ref/ files Claude reads on demand"
                 )
             else:
-                print(
+                _notify(
                     f"{xftc_prefix()}  Your CLAUDE.md is {total} lines — "
                     f"every line burns context on every message"
                 )
-                print(
+                _notify(
                     "         Run /dispatch-compact-md to compact it — "
                     "or upgrade for full token hog detection: dispatch.visionairy.biz/pro"
                 )
             update_session(session_id, {"claude_md_warned": True})
 
     if is_pro:
-        _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count)
+        _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count,
+                        transcript_path)
     elif not session.get("ghost_fired"):
         _maybe_fire_submit_ghost(session_id, cwd, message_count)
 
+    _flush_pending()
     return 0
 
 
 def run_preuse_hook(data: dict) -> int:
+    # Surface any pending XFTC notices — block this tool call once, clear, retry succeeds
+    if os.path.exists(_PENDING_FILE):
+        try:
+            with open(_PENDING_FILE) as f:
+                notices = json.load(f)
+            if notices:
+                with open(_PENDING_FILE, "w") as f:
+                    json.dump([], f)
+                print("\n".join(notices))
+                return 1
+        except Exception:
+            pass
+
     tool_name = data.get("tool_name", "")
     tool_input = data.get("tool_input", {})
     session_id = data.get("session_id", "unknown")
@@ -129,7 +173,8 @@ def run_stop_hook(data: dict) -> int:
 
 # ── Pro submit checks ───────────────────────────────────────────────────────
 
-def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
+def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count,
+                    transcript_path=None):
     from xftc.checks.mcp_check import check_mcp_overhead
     from xftc.checks.context_check import should_compact
     from xftc.checks.timing_check import is_peak_hours, check_cache_timeout
@@ -143,26 +188,26 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
         result = check_mcp_overhead(cwd)
         if result:
             count, tokens = result
-            print(
+            _notify(
                 f"{xftc_prefix()}  {count} MCP server{'s' if count != 1 else ''} "
                 f"active (~{tokens:,} tokens/message overhead)"
             )
-            print("         Disconnect unused servers with /mcp to reduce baseline cost")
+            _notify("         Disconnect unused servers with /mcp to reduce baseline cost")
             update_session(session_id, {"mcp_warned": True})
 
     # Peak hours — once per session
     if not session.get("peak_warned") and is_peak_hours():
-        print(f"{xftc_prefix()}  Peak hours (8am\u20132pm ET weekdays) \u2014 session budgets drain faster")
-        print("         Consider deferring large refactors or multi-agent runs to off-peak")
+        _notify(f"{xftc_prefix()}  Peak hours (8am\u20132pm ET weekdays) \u2014 session budgets drain faster")
+        _notify("         Consider deferring large refactors or multi-agent runs to off-peak")
         update_session(session_id, {"peak_warned": True})
 
     # 60% compact reminder — once per session
     if not session.get("compact_warned"):
-        fill = should_compact(message_count, cwd)
+        fill = should_compact(message_count, cwd, transcript_path)
         if fill:
             pct = int(fill * 100)
-            print(f"{xftc_prefix()}  Context estimated ~{pct}% full \u2014 autocompact triggers at 95%,")
-            print("         at which point quality degrades. Run /compact with preserve instructions.")
+            _notify(f"{xftc_prefix()}  Context estimated ~{pct}% full \u2014 autocompact triggers near 99%.")
+            _notify("         Options: /compact (preserve context)  /clear (fresh start)  /warm-start (snapshot + clear)")
             update_session(session_id, {"compact_warned": True})
 
     # Cache timeout — weekly cap, needs substantial prior context
@@ -170,8 +215,8 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
     if last_stop and is_monday and project.get("last_cache_reminder") != today:
         prior_msgs = session.get("message_count", 0)
         if prior_msgs > 10 and check_cache_timeout(last_stop):
-            print(f"{xftc_prefix()}  Stepped away? Prompt cache expired \u2014 full context reprocessed from scratch")
-            print("         Use /compact before breaks to preserve cache and reduce cost on return")
+            _notify(f"{xftc_prefix()}  Stepped away? Prompt cache expired \u2014 full context reprocessed from scratch")
+            _notify("         Use /compact before breaks to preserve cache and reduce cost on return")
             update_project(dir_hash, {"last_cache_reminder": today})
 
     # Memory audit — once per project per day
@@ -188,12 +233,8 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
                 issues.append(f"{count} broken {noun}")
             if bloated:
                 issues.append(f"{line_count} lines — over 180-line limit")
-            print(
-                f"{xftc_prefix()}  MEMORY.md: {', '.join(issues)}"
-            )
-            print(
-                "         Say '/warm-start' to audit and fix (creates .bak backup first)"
-            )
+            _notify(f"{xftc_prefix()}  MEMORY.md: {', '.join(issues)}")
+            _notify("         Say '/warm-start' to audit and fix (creates .bak backup first)")
         update_project(dir_hash, {"memory_audit_last": today})
 
     # Version check — Mondays only
@@ -205,10 +246,10 @@ def _run_pro_submit(session, session_id, project, dir_hash, cwd, message_count):
         result = check_version(installed, last_notified, last_check)
         if result:
             version, changelog = result
-            print(f"{xftc_prefix()}  v{version} available \u2014 new in this release:")
+            _notify(f"{xftc_prefix()}  v{version} available \u2014 new in this release:")
             if changelog:
-                print(changelog)
-            print(
+                _notify(changelog)
+            _notify(
                 "  Run: bash <(curl -s "
                 "https://raw.githubusercontent.com/VisionAIrySE/Dispatch/main/install.sh"
                 ") --update"
@@ -225,13 +266,13 @@ def _maybe_fire_submit_ghost(session_id, cwd, message_count):
     from xftc.checks.timing_check import is_peak_hours
 
     if check_mcp_overhead(cwd):
-        print(f"{xftc_prefix()}  Pro would have flagged an MCP overhead issue here \u2014 dispatch.visionairy.biz/pro")
+        _notify(f"{xftc_prefix()}  Pro would have flagged an MCP overhead issue here \u2014 dispatch.visionairy.biz/pro")
         update_session(session_id, {"ghost_fired": True})
     elif is_peak_hours():
-        print(f"{xftc_prefix()}  Pro would have flagged peak hour usage here \u2014 dispatch.visionairy.biz/pro")
+        _notify(f"{xftc_prefix()}  Pro would have flagged peak hour usage here \u2014 dispatch.visionairy.biz/pro")
         update_session(session_id, {"ghost_fired": True})
     elif message_count >= 8:
-        print(f"{xftc_prefix()}  Pro would have flagged context usage here \u2014 dispatch.visionairy.biz/pro")
+        _notify(f"{xftc_prefix()}  Pro would have flagged context usage here \u2014 dispatch.visionairy.biz/pro")
         update_session(session_id, {"ghost_fired": True})
 
 

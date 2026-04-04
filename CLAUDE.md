@@ -1,5 +1,40 @@
 # ToolDispatch — Claude Code Configuration
 
+## Mission
+
+Dispatch provides **VISIBLE guidance, diagnostics, and corrective action** to the developer — in conversation, where they can see and act on it. Every module (Dispatch, XFBA, XSIA, XFTC) must surface findings to Russ directly. If Russ can't see it, it didn't happen.
+
+---
+
+## XFBA + XSIA Protocol (SUPREME)
+
+Claude is the analyst. Russ is the decision-maker. Both tools surface findings — Russ decides what to do.
+
+**When XFBA blocks an edit** (code contract violation — type, import, arity):
+1. Surface the violation in plain English
+2. Explain whether it looks like a real bug or a false positive
+3. Ask: "Fix it, suppress it, or proceed anyway?" — wait for answer
+
+**When XSIA fires** (systemic impact concern):
+1. Surface the flagged concerns in plain English
+2. Explain whether each looks routine or substantive
+3. Ask: "Fix impact issues or let it ride?" — wait for answer
+
+**Never auto-bypass either tool.** Exception: if Russ already said "let it ride" / "proceed" in the current message.
+
+---
+
+## XFTC Notice Protocol (SUPREME)
+
+Hook stdout is NOT visible to Russ — it only reaches Claude's context. XFTC writes user-intended notices to `~/.claude/dispatch/xftc_pending.json`.
+
+**At the start of EVERY response in a Dispatch session:**
+1. Read `~/.claude/dispatch/xftc_pending.json`
+2. If it has content, surface ALL lines at the top of your response as a quoted block
+3. Write `[]` back to the file to clear it
+
+This is the ONLY way Russ sees XFTC notifications. Do not skip this step.
+
 **Stack:** Python 3.8+ · Bash · Claude Haiku (free) / Sonnet 4.6 (Pro)
 **Repo:** github.com/ToolDispatch/Dispatch
 **Server:** `/home/visionairy/Dispatch-API/app.py` — auto-deploys to Render on `git push`
